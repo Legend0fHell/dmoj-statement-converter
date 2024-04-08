@@ -1,0 +1,3 @@
+[submodule "markdown2latex"]
+	path = markdown2latex
+	url = https://github.com/rufuspollock/markdown2latex.git

@@ -1,0 +1,11 @@
+__pycache__
+data
+.env
+
+.idea
+.vscode
+.VSCodeCounter
+
+ignore
+output
+manual.txt
