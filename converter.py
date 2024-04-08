@@ -203,9 +203,9 @@ def convert_html_to_markdown(html: str, bullet="*", replace_latex = True):
     
     # Undo the MDXLatex's escape of some special characters (Line :50)
     result = result.replace("\\_", "_")
-    result = result.replace("\\%", "%")
-    result = result.replace("\\&", "&")
-    result = result.replace("\\#", "#")
+    # result = result.replace("\\%", "%")
+    # result = result.replace("\\&", "&")
+    # result = result.replace("\\#", "#")
 
     # Replace some special cases
     result = result.replace("\\left(", "\\ (")
