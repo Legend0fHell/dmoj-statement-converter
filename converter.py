@@ -315,6 +315,34 @@ def generate_problem_info(problem: dict):
 
     return problem_info
 
+def convert_md_table_to_latex(md_table: str):
+    """Convert a Markdown table to LaTeX format."""
+    # https://github.com/JINHXu/MDtable2Latex/blob/main/mdtable2latex.py
+    inlines = []
+    cline = ''
+    lines = md_table.strip().split('\n')
+    cline = lines[1].strip().replace(':---:', 'c')
+    cline = cline.replace(' ', '')
+    del lines[1]
+    for line in lines:
+        line = line.strip()
+        line = line[1:]
+        line = line[:-1]
+        line = line.replace('|', '&')
+        line = line+'\\\\'+'\n'
+        inlines.append(line)
+    
+    result_str = ""
+    result_str +=('\\begin{center}')
+    result_str +=('\\begin{tabular}'+'{' +cline+ '}'+'\n')
+    for inline in inlines:
+        result_str +=('\\hline'+'\n')
+        result_str +=(inline)
+    result_str +=('\\hline'+'\n')
+    result_str +=('\\end{tabular}')
+    result_str +=('\\end{center}')
+    return result_str
+
 def convert_to_latex_base(problem: dict):
     """Base function to convert the problem content to LaTeX format."""
     markdown_content = convert_html_to_markdown(problem["problem_content_raw"])
@@ -343,6 +371,20 @@ def convert_to_latex_base(problem: dict):
     # Replace dollar sign 
     result = result.replace("!!Dollar!!", "\\$")
 
+    # Detect and convert the Markdown tables to LaTeX format
+
+    # Properly format the alignment of the table
+    result = result.replace("| --- ", "|:---:")
+
+    # Find all the Markdown tables
+    # Credit: https://stackoverflow.com/a/54771485
+    md_tables = re.findall(r'^(\|[^\n]+\|\r?\n)((?:\|:?[-]+:?)+\|)(\n(?:\|[^\n]+\|\r?\n?)*)?$', result, re.DOTALL | re.MULTILINE)
+
+    # Convert the Markdown tables to LaTeX format
+    for md_table in md_tables:
+        md_table_string = md_table[0] + md_table[1] + md_table[2]
+        result = result.replace(md_table_string, "\n" + convert_md_table_to_latex(md_table_string) + "\n")
+
     # Replace the image links with the correct LaTeX format
     result = result.replace("!!FileImage!!", "\\includegraphics{")
     result = result.replace("!!EndFileImage!!", "}")
@@ -357,13 +399,18 @@ def convert_to_latex_base(problem: dict):
     return result
 
 def replace_old_testcase(problem_content_latex: str, testcase_str: str):
-    """Replace the old testcases with the new testcases."""
+    """Replace the old testcases in the problem with the new testcases being generated."""
 
     problem_testcase_content = problem_content_latex
     # Remove the content before the first testcase, if not found, raise a warning
     for(indicator) in TESTCASE_INDICATOR_LIST:
-        if problem_testcase_content.find(indicator) != -1:
-            problem_testcase_content = problem_testcase_content[problem_testcase_content.find(indicator):]
+        ind = problem_testcase_content.find(indicator)
+        if ind != -1:
+            # Find the last '\n' before the indicator
+            ind = problem_testcase_content.rfind('\n', 0, ind)
+
+            # Remove the content before the indicator
+            problem_testcase_content = problem_testcase_content[ind:]
             break
     else:
         raise Warning("There is no clear indication of the testcases in the problem content. Please check the problem content.")
@@ -371,7 +418,7 @@ def replace_old_testcase(problem_content_latex: str, testcase_str: str):
     # Remove the content after the last testcase
     problem_testcase_content = problem_testcase_content[:problem_testcase_content.rfind('\\end{lstlisting}') + len('\\end{lstlisting}')]
 
-    return problem_content_latex.replace(problem_testcase_content, testcase_str)
+    return problem_content_latex.replace(problem_testcase_content, "\n\n" + testcase_str)
 
 
 def convert_to_latex(problem: dict):
