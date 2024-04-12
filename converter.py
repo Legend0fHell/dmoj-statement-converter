@@ -343,6 +343,23 @@ def convert_md_table_to_latex(md_table: str):
     result_str +=('\\end{center}')
     return result_str
 
+def process_math_function(func_str: str):
+    """Process the math functions to be converted to LaTeX format."""
+    
+    # Fix some special characters cases:
+    func_str = func_str.replace("\\*", "\\times ")
+    func_str = func_str.replace("*", "\\times ")
+    func_str = func_str.replace("×", "\\times ")
+    func_str = func_str.replace("...", "\\dots ")
+    func_str = func_str.replace("…", "\\dots ")
+    func_str = func_str.replace("≤", "\\le ")
+    func_str = func_str.replace("≥", "\\ge ")
+
+    # Replace dollar sign 
+    func_str = func_str.replace("!!Dollar!!", "\\$")
+
+    return func_str
+
 def convert_to_latex_base(problem: dict):
     """Base function to convert the problem content to LaTeX format."""
     markdown_content = convert_html_to_markdown(problem["problem_content_raw"])
@@ -365,11 +382,8 @@ def convert_to_latex_base(problem: dict):
     # Replace the math functions in the latex content with the original math_function from markdown (the converter sucks)
     for i, math_func_need in enumerate(math_functions_need_replace):
         math_func_need_str = str(math_func_need[0]) # The entire math function
-        math_func_str = str(math_functions[i][0]) + str(math_functions[i][1]) + str(math_functions[i][0]) # The original math function
+        math_func_str = str(math_functions[i][0]) + process_math_function(str(math_functions[i][1])) + str(math_functions[i][0]) # The original math function
         result = result.replace(math_func_need_str, math_func_str, 1)
-
-    # Replace dollar sign 
-    result = result.replace("!!Dollar!!", "\\$")
 
     # Detect and convert the Markdown tables to LaTeX format
 
@@ -384,6 +398,9 @@ def convert_to_latex_base(problem: dict):
     for md_table in md_tables:
         md_table_string = md_table[0] + md_table[1] + md_table[2]
         result = result.replace(md_table_string, "\n" + convert_md_table_to_latex(md_table_string) + "\n")
+
+    # Replace dollar sign 
+    result = result.replace("!!Dollar!!", "\\$")
 
     # Replace the image links with the correct LaTeX format
     result = result.replace("!!FileImage!!", "\\includegraphics{")
