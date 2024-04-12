@@ -31,6 +31,8 @@ LATEX_HEADER = """
 
 """
 
+TESTCASE_INDICATOR_LIST = ["Sample", "Example", "Ví dụ", "Test", "Testcase", "Case"]
+
 INSTRUCT_USING_MANUAL = """
 Can not convert the problem. You can try using Manual method instead:
 
@@ -160,8 +162,13 @@ def get_martor_files(problem_content: str, problem_site: str, problem_folder_nam
 def extract_testcase(problem_content: str):
     """Extract the testcases from the problem content."""
 
-    # Remove the content before the first testcase
-    problem_content = problem_content[problem_content.find("Sample"):]
+    # Remove the content before the first testcase, if not found, raise a warning
+    for(indicator) in TESTCASE_INDICATOR_LIST:
+        if problem_content.find(indicator) != -1:
+            problem_content = problem_content[problem_content.find(indicator):]
+            break
+    else:
+        raise Warning("There is no clear indication of the testcases in the problem content. Please check the problem content.")
 
     # Replace to make the content easier to parse
     problem_content = problem_content.replace('<pre><code>', '||begin||').replace('</code></pre>', '||end||')
@@ -236,17 +243,17 @@ def generate_testcase_table(testcases: list, input_name: str, output_name: str):
     """Generate a LaTeX table for the testcases."""
     testcase_table = """
 
-\\\\ttfamily
-\\\\begin{center}
-\\\\begin{tabularx}{1\\\\textwidth}{| >{\\\\raggedright\\\\arraybackslash}X | >{\\\\raggedright\\\\arraybackslash}X |}
-\\\\hline
+\\ttfamily
+\\begin{center}
+\\begin{tabularx}{1\\textwidth}{| >{\\raggedright\\arraybackslash}X | >{\\raggedright\\arraybackslash}X |}
+\\hline
 """
-    testcase_table += f"{input_name} & {output_name} \\\\\\\\ \n"
+    testcase_table += f"{input_name} & {output_name} \\\\ \n"
 
     for testcase in testcases:
-        testcase_table += f"\\\\hline\n{str(testcase[0]).replace("\n", "\\\\par ")} & {str(testcase[1]).replace("\n", "\\\\par ")} \\\\\\\\ \n"
+        testcase_table += f"\\hline\n{str(testcase[0]).replace("\n", "\\par ")} & {str(testcase[1]).replace("\n", "\\par ")} \\\\ \n"
 
-    testcase_table += "\\\\hline\n\\\\end{tabularx}\n\\\\end{center}\n\\\\rmfamily\n"
+    testcase_table += "\\hline\n\\end{tabularx}\n\\end{center}\n\\rmfamily\n"
 
     return testcase_table
 
@@ -254,17 +261,17 @@ def generate_testcase_list(testcases: list, input_name: str, output_name: str):
     """Generate a list of testcases for the LaTeX content."""
     testcase_list = "\n\n"
 
-    testcase_list += f"\\\\textbf{{Input}}: {input_name} \n\n"
-    testcase_list += f"\\\\textbf{{Output}}: {output_name} \n\n"
+    testcase_list += f"\\textbf{{Input}}: {input_name} \n\n"
+    testcase_list += f"\\textbf{{Output}}: {output_name} \n\n"
 
     for i, testcase in enumerate(testcases):
-        testcase_list += f"\\\\textbf{{Testcase {i + 1}}} \\\\\\\\ \n"
-        testcase_list += "\\\\ttfamily\nInput:\n\\\\begin{lstlisting}"
+        testcase_list += f"\\textbf{{Testcase {i + 1}}} \\\\ \n"
+        testcase_list += "\\ttfamily\nInput:\n\\begin{lstlisting}"
         testcase_list += f"\n{testcase[0]}\n"
-        testcase_list += f"\\\\end{{lstlisting}}\n"
-        testcase_list += "Output:\n\\\\begin{lstlisting}"
+        testcase_list += f"\\end{{lstlisting}}\n"
+        testcase_list += "Output:\n\\begin{lstlisting}"
         testcase_list += f"\n{testcase[1]}\n"
-        testcase_list += f"\\\\end{{lstlisting}}\n\\\\rmfamily\n\n"
+        testcase_list += f"\\end{{lstlisting}}\n\\rmfamily\n\n"
 
     return testcase_list
 
@@ -272,16 +279,16 @@ def generate_testcase_exmp(testcases: list, input_name: str, output_name: str):
     """Generate a list of testcases for the LaTeX content."""
     testcase_list = "\n\n"
 
-    testcase_list += "\\\\begin{example}%\n"
+    testcase_list += "\\begin{example}%\n"
 
     for i, testcase in enumerate(testcases):
-        testcase_list += "\\\\exmp{\n"
+        testcase_list += "\\exmp{\n"
         testcase_list += f"{testcase[0]}\n"
         testcase_list += "}{\n"
         testcase_list += f"{testcase[1]}\n"
         testcase_list += "}%\n"
 
-    testcase_list += "\\\\end{example}\n"
+    testcase_list += "\\end{example}\n"
 
     return testcase_list
 
@@ -309,6 +316,7 @@ def generate_problem_info(problem: dict):
     return problem_info
 
 def convert_to_latex_base(problem: dict):
+    """Base function to convert the problem content to LaTeX format."""
     markdown_content = convert_html_to_markdown(problem["problem_content_raw"])
 
     md = markdown.Markdown()
@@ -320,14 +328,16 @@ def convert_to_latex_base(problem: dict):
 
     # Extract all math functions
     
+    # First group is the number of dollar signs, second group is the content
     math_functions = re.findall(r'(\${1,2})((?:(?!\1)[\s\S])*)\1', markdown_content, re.DOTALL)
     
-    math_functions_need_replace = re.findall(r'\\[\(|\[]((?:.|\n)*?)\\[\)|\]]', result, re.DOTALL)
+    # First group is the entire math function, second group is the content
+    math_functions_need_replace = re.findall(r'(\\[\(|\[]((?:.|\n)*?)\\[\)|\]])', result, re.DOTALL)
 
-    # Replace the math functions in the latex content with the original math_function from markdown
+    # Replace the math functions in the latex content with the original math_function from markdown (the converter sucks)
     for i, math_func_need in enumerate(math_functions_need_replace):
-        math_func_need_str = str(math_func_need)
-        math_func_str = str(math_functions[i][1])
+        math_func_need_str = str(math_func_need[0]) # The entire math function
+        math_func_str = str(math_functions[i][0]) + str(math_functions[i][1]) + str(math_functions[i][0]) # The original math function
         result = result.replace(math_func_need_str, math_func_str, 1)
 
     # Replace dollar sign 
@@ -346,15 +356,31 @@ def convert_to_latex_base(problem: dict):
 
     return result
 
-def convert_to_latex(problem: dict):    
+def replace_old_testcase(problem_content_latex: str, testcase_str: str):
+    """Replace the old testcases with the new testcases."""
+
+    problem_testcase_content = problem_content_latex
+    # Remove the content before the first testcase, if not found, raise a warning
+    for(indicator) in TESTCASE_INDICATOR_LIST:
+        if problem_testcase_content.find(indicator) != -1:
+            problem_testcase_content = problem_testcase_content[problem_testcase_content.find(indicator):]
+            break
+    else:
+        raise Warning("There is no clear indication of the testcases in the problem content. Please check the problem content.")
+    
+    # Remove the content after the last testcase
+    problem_testcase_content = problem_testcase_content[:problem_testcase_content.rfind('\\end{lstlisting}') + len('\\end{lstlisting}')]
+
+    return problem_content_latex.replace(problem_testcase_content, testcase_str)
+
+
+def convert_to_latex(problem: dict):
+    """Convert the problem content to LaTeX format."""
     result = convert_to_latex_base(problem)
 
     # Insert a table with the testcases
-    testcase_table = generate_testcase_table(problem["problem_testcases"], problem["problem_info_entries"]["Input"], problem["problem_info_entries"]["Output"])
-    result = re.sub(r'.*Sample((.|\n)*?)\\end{lstlisting}', testcase_table, result, 1)
-    
-    # Remove the testcases from the LaTeX content
-    result = re.sub(r'.*Sample((.|\n)*?)\\end{lstlisting}', '', result, re.DOTALL)
+    testcase_str = generate_testcase_table(problem["problem_testcases"], problem["problem_info_entries"]["Input"], problem["problem_info_entries"]["Output"])
+    result = replace_old_testcase(result, testcase_str)
 
     # Replace only the first occurrence of "<root>" and last occurrence of "</root>" with the LaTeX header and footer
     problem_info = generate_problem_info(problem)
@@ -364,14 +390,12 @@ def convert_to_latex(problem: dict):
     return result
 
 def convert_to_polygon_latex(problem: dict):
+    """Convert the problem content to LaTeX format for Polygon."""
     result = convert_to_latex_base(problem)
 
-    # Insert a table with the testcases
-    testcase_table = generate_testcase_list(problem["problem_testcases"], problem["problem_info_entries"]["Input"], problem["problem_info_entries"]["Output"])
-    result = re.sub(r'.*Sample((.|\n)*?)\\end{lstlisting}', testcase_table, result, 1)
-    
-    # Remove the testcases from the LaTeX content
-    result = re.sub(r'.*Sample((.|\n)*?)\\end{lstlisting}', '', result, re.DOTALL)
+    # Insert a list with the testcases
+    testcase_str = generate_testcase_list(problem["problem_testcases"], problem["problem_info_entries"]["Input"], problem["problem_info_entries"]["Output"])
+    result = replace_old_testcase(result, testcase_str)
 
     # Replace only the first occurrence of "<root>" and last occurrence of "</root>" with the LaTeX header and footer
     problem_info = generate_problem_info(problem)
@@ -381,14 +405,12 @@ def convert_to_polygon_latex(problem: dict):
     return result
 
 def convert_to_template_latex(problem: dict):
+    """Convert the problem content to LaTeX format for Templates."""
     result = convert_to_latex_base(problem)
 
     # Insert a table with the testcases
-    testcase_table = generate_testcase_exmp(problem["problem_testcases"], problem["problem_info_entries"]["Input"], problem["problem_info_entries"]["Output"])
-    result = re.sub(r'.*Sample((.|\n)*?)\\end{lstlisting}', testcase_table, result, 1)
-    
-    # Remove the testcases from the LaTeX content
-    result = re.sub(r'.*Sample((.|\n)*?)\\end{lstlisting}', '', result, re.DOTALL)
+    testcase_str = generate_testcase_exmp(problem["problem_testcases"], problem["problem_info_entries"]["Input"], problem["problem_info_entries"]["Output"])
+    result = replace_old_testcase(result, testcase_str)
 
     problem_info = "\\begin{statement}" + "[" + problem["problem_title"] + "]{" + problem["problem_code"] + "}{" + problem["problem_info_entries"]["Input"] + "}{" + problem["problem_info_entries"]["Output"] + "}{xxx}{yyy}{\\points{}}"
 
