@@ -6,6 +6,7 @@ import markdown
 import markdownify
 import markdown2latex.mdx_latex as MDXLatex
 import warnings
+import unicodedata
 
 SPECIAL_CHAR_BULLET = "―"
 LATEX_HEADER = """
@@ -714,7 +715,7 @@ def convert_to_latex(problem: dict):
     result = result.replace("<root>", LATEX_HEADER + problem_info, 1)
     result = result[::-1].replace("</root>"[::-1], "\\end{document}"[::-1], 1)[::-1]
 
-    return result
+    return unicodedata.normalize("NFC", result)
 
 def convert_to_polygon_latex(problem: dict):
     """Convert the problem content to LaTeX format for Polygon."""
@@ -730,7 +731,7 @@ def convert_to_polygon_latex(problem: dict):
     result = result.replace("<root>", LATEX_HEADER + problem_info, 1)
     result = result[::-1].replace("</root>"[::-1], "\\end{document}"[::-1], 1)[::-1]
 
-    return result
+    return unicodedata.normalize("NFC", result)
 
 def convert_to_template_latex(problem: dict):
     """Convert the problem content to LaTeX format for Templates."""
@@ -749,7 +750,7 @@ def convert_to_template_latex(problem: dict):
     result = result.replace("<root>", problem_info, 1)
     result = result[::-1].replace("</root>"[::-1], "\\end{statement}"[::-1], 1)[::-1]
 
-    return result
+    return unicodedata.normalize("NFC", result)
 
 def create_folder(folder_name: str):
     """Create a folder with the given name if it does not exist."""
