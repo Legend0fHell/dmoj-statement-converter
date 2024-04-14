@@ -64,7 +64,17 @@ Không thể chuyển đổi bài toán. Tuy nhiên có thể thử sử dụng 
 8. Khi bạn đã sẵn sàng, nhấn Enter để tiếp tục.
 """
 
-def get_dmoj_raw_problem(url: str, override = None):
+def os_create_folder(folder_name: str):
+    """Create a folder with the given name if it does not exist."""
+    import os
+
+    if not os.path.exists(folder_name):
+        os.makedirs(folder_name)
+        return True
+    
+    return False
+
+def get_base_problem_dmoj(url: str, override = None):
     """Return and extract the raw problem content from a DMOJ-themed site."""
 
     # Problem code is the part after the '/problem/' in the URL
@@ -140,7 +150,7 @@ def get_dmoj_raw_problem(url: str, override = None):
         "problem_content_raw": html_problem_content
     }
 
-def get_lqdoj_raw_problem(url: str, override = None):
+def get_base_problem_lqdoj(url: str, override = None):
     """Return and extract the raw problem content from LQDOJ - a strange af DMOJ-themed site"""
 
     # Problem code is the part after the '/problem/' in the URL
@@ -210,7 +220,7 @@ def get_lqdoj_raw_problem(url: str, override = None):
         "problem_content_raw": html_problem_content
     }
 
-def get_codeforces_raw_problem(url: str, override = None):
+def get_base_problem_codeforces(url: str, override = None):
     """Return and extract the raw problem content from a Codeforces site."""
 
     # Problem code is the part after the '/problem/' in the URL
@@ -312,76 +322,43 @@ def get_codeforces_raw_problem(url: str, override = None):
         "problem_content_raw": html_problem_content
     }
 
-def get_martor_files(problem_content: str, problem_site: str, problem_folder_name: str):
-    """Return the list of Martor files from the DMOJ problem content."""
+def get_files(problem_content: str, problem_site: str, problem_folder_name: str, problem_site_type: str):
+    """Return the list of files embedded in the problem content."""
 
-    # Extract the Martor files from the problem content
-    martor_files = re.findall(r'\/martor(.+?)"', problem_content)
+    # Extract the files from the problem content
+    files = []
+    if problem_site_type == "DMOJ":
+        files = re.findall(r'\/martor(.+?)"', problem_content)
+    elif problem_site_type == "LQDOJ":
+        files = re.findall(r'\/media/pagedown-uploads(.+?)"', problem_content)
+    elif problem_site_type == "Codeforces":
+        files = re.findall(r'\/espresso(.+?)"', problem_content)
 
     # Remove the duplicates
-    martor_files = list(set(martor_files))
+    files = list(set(files))
 
-    # Download the Martor files
-    for martor_file in martor_files:
-        print(f"[DMOJ] [Martor] Downloading {martor_file}...")
-        response = requests.get(f"https://{problem_site}/martor{martor_file}")
+    # Download the files
+    for i, file in enumerate(files):
+        print(f"[{problem_site_type}] Downloading {file}... ({i + 1}/{len(files)})")
 
+        response = None
+        if problem_site_type == "DMOJ":
+            response = requests.get(f"https://{problem_site}/martor{file}")
+        elif problem_site_type == "LQDOJ":
+            response = requests.get(f"https://{problem_site}/media/pagedown-uploads{file}")
+        elif problem_site_type == "Codeforces":
+            response = requests.get(f"https://{problem_site}/espresso{file}")
+        
         if(response.status_code != 200):
             raise Exception("Failed to get Martor file from DMOJ-themed site")
 
-        # Save the Martor file
-        with open(f"output/{problem_folder_name}{martor_file}", "wb") as file:
-            file.write(response.content)
+        # Save the file
+        with open(f"output/{problem_folder_name}{file}", "wb") as f:
+            f.write(response.content)
 
-    return martor_files
+    return files
 
-def get_espresso_files(problem_content: str, problem_site: str, problem_folder_name: str):
-    """Return the list of espresso files from the Codeforces problem content."""
-
-    # Extract the espresso files from the problem content
-    espresso_files = re.findall(r'\/espresso(.+?)"', problem_content)
-
-    # Remove the duplicates
-    espresso_files = list(set(espresso_files))
-
-    # Download the espresso files
-    for espresso_file in espresso_files:
-        print(f"[Codeforces] [Espresso] Downloading {espresso_file}...")
-        response = requests.get(f"https://{problem_site}/espresso{espresso_file}")
-
-        if(response.status_code != 200):
-            raise Exception("Failed to get espresso file from Codeforces site")
-
-        # Save the espresso file
-        with open(f"output/{problem_folder_name}{espresso_file}", "wb") as file:
-            file.write(response.content)
-
-    return espresso_files
-
-def get_lqdoj_files(problem_content: str, problem_site: str, problem_folder_name: str):
-    """Return the list of LQDOJ files from the LQDOJ problem content."""
-
-    # Extract the LQDOJ files from the problem content
-    lqdoj_files = re.findall(r'\/media/pagedown-uploads(.+?)"', problem_content)
-
-    # Remove the duplicates
-    lqdoj_files = list(set(lqdoj_files))
-
-    # Download the LQDOJ files
-    for lqdoj_file in lqdoj_files:
-        print(f"[LQDOJ] [Pagedown] Downloading {lqdoj_file}...")
-        response = requests.get(f"https://{problem_site}/media/pagedown-uploads{lqdoj_file}")
-
-        if(response.status_code != 200):
-            raise Exception("Failed to get LQDOJ file from LQDOJ site")
-
-        # Save the LQDOJ file
-        with open(f"output/{problem_folder_name}{lqdoj_file}", "wb") as file:
-            file.write(response.content)
-
-    return lqdoj_files
-
-def extract_testcase(problem_content: str, problem_site_type: str):
+def get_testcases(problem_content: str, problem_site_type: str):
     """Extract the testcases from the problem content."""
 
     # Remove the content before the first testcase, if not found, raise a warning
@@ -427,62 +404,6 @@ def extract_testcase(problem_content: str, problem_site_type: str):
         testcases_separated.append([testcases[i], testcases[i + 1]])
 
     return testcases_separated
-
-def convert_html_to_markdown(problem: dict):
-    """Convert HTML content to Markdown content."""
-
-    html = problem["problem_content_raw"]
-
-    result = markdownify.markdownify(html, heading_style="ATX", bullets="*")
-
-    # Replace dollar sign to prevent the math functions from being replaced
-    result = re.sub(r'\\\$', r'!!Dollar!!', result)
-
-    # Change the latex math delimiters
-    if (problem["problem_site_type"] == "Codeforces"):
-        result = result.replace("$$$", "$")
-    elif (problem["problem_site_type"] == "DMOJ"):
-        result = result.replace("~", "$")
-    else: # LQDOJ
-        result = result.replace('\\(', '$')
-        result = result.replace('\\)', '$')
-        result = result.replace('\\[', '$$')
-        result = result.replace('\\]', '$$')
-
-    # Undo the MDXLatex's escape of some special characters (Line :50)
-    result = result.replace("\\_", "_")
-
-    # Replace some special cases
-    result = result.replace("\\left(", "\\ (")
-    result = result.replace("\\right)", ")")
-    result = result.replace("\\left[", "\\ [")
-    result = result.replace("\\right]", "]")
-    result = result.replace("\\left{", "\\ {")
-    result = result.replace("\\right}", "}")
-    result = result.replace("\\left|", "|")
-    result = result.replace("\\right|", "|")
-
-    # Remove domain from image links
-
-    if (problem["problem_site_type"] == "Codeforces"):
-        # Remove "https://codeforces.com/espresso/" from the image links
-        result = result.replace(f"https://{problem["problem_site"]}/espresso/", "")
-    elif (problem["problem_site_type"] == "DMOJ"):
-        # Remove "/martor/" from the image links
-        result = result.replace("/martor/", "")
-    else: # LQDOJ
-        # Remove "/media/pagedown-uploads/" from the image links
-        result = result.replace("/media/pagedown-uploads/", "")
-
-    # Replace image links with a template to process later
-    result = re.sub(r'!\[(.*?)\]\((.*?)\)', r'\n!!FileImage!!\2!!EndFileImage!!\n', result)
-
-    # Replace code blocks with a template to process later
-    result = re.sub(r'\`\`\`((.|\n)*?)\`\`\`', r'\n!!Codeblock!!\1!!EndCodeblock!!\n', result)
-
-    result = result.strip().strip("\n")
-    
-    return result
 
 def generate_testcase_table(testcases: list, input_name: str, output_name: str):
     """Generate a LaTeX table for the testcases."""
@@ -570,6 +491,52 @@ def generate_problem_info(problem: dict):
 
     return problem_info
 
+def util_replace_testcase(problem_content_latex: str, testcase_str: str, safe_replace = True):
+    """Replace the old testcases in the problem with the new testcases being generated."""
+
+    problem_testcase_content = problem_content_latex
+    # Remove the content before the first testcase, if not found, raise a warning
+    for(indicator) in TESTCASE_INDICATOR_LIST:
+        ind = problem_testcase_content.find(indicator)
+        if ind != -1:
+            # Find the last '\n' before the indicator
+            ind = problem_testcase_content.rfind('\n', 0, ind)
+
+            # Remove the content before the indicator
+            problem_testcase_content = problem_testcase_content[ind:]
+            break
+    else:
+        warnings.warn("There is no clear indication of the testcases in the problem content. Please check the problem content.")
+    
+    # Remove the content after the last testcase
+    problem_testcase_content = problem_testcase_content[:problem_testcase_content.rfind('\\end{lstlisting}') + len('\\end{lstlisting}')]
+
+    if safe_replace:
+        problem_testcase_content_new = problem_testcase_content
+        # Remove every lstlisting block using regex
+        problem_testcase_content_new = re.sub(r'\\begin{lstlisting}((.|\n)*?)\\end{lstlisting}', '', problem_testcase_content_new, re.DOTALL | re.MULTILINE)
+        return problem_content_latex.replace(problem_testcase_content, "\n\n\\subsubsection*{Example}\n\n" + testcase_str + "\n\n" + problem_testcase_content_new)
+    else:
+        return problem_content_latex.replace(problem_testcase_content, "\n\n\\subsubsection*{Example}\n\n" + testcase_str)
+
+def util_process_equation(func_str: str):
+    """Process the math functions to be converted to LaTeX format."""
+    
+    # Fix some special characters cases:
+    func_str = func_str.replace("\\*", "\\times ")
+    func_str = func_str.replace("*", "\\times ")
+    func_str = func_str.replace("×", "\\times ")
+    func_str = func_str.replace("...", "\\dots ")
+    func_str = func_str.replace("…", "\\dots ")
+    func_str = func_str.replace("≤", "\\le ")
+    func_str = func_str.replace("≥", "\\ge ")
+    func_str = func_str.replace("−", "-")
+
+    # Replace dollar sign 
+    func_str = func_str.replace("!!Dollar!!", "\\$")
+
+    return func_str
+
 def convert_md_table_to_latex(md_table: str):
     """Convert a Markdown table to LaTeX format."""
     # https://github.com/JINHXu/MDtable2Latex/blob/main/mdtable2latex.py
@@ -598,23 +565,61 @@ def convert_md_table_to_latex(md_table: str):
     result_str +=('\\end{center}')
     return result_str
 
-def process_math_function(func_str: str):
-    """Process the math functions to be converted to LaTeX format."""
+def convert_html_to_markdown(problem: dict):
+    """Convert HTML content to Markdown content."""
+
+    html = problem["problem_content_raw"]
+
+    result = markdownify.markdownify(html, heading_style="ATX", bullets="*")
+
+    # Replace dollar sign to prevent the math functions from being replaced
+    result = re.sub(r'\\\$', r'!!Dollar!!', result)
+
+    # Change the latex math delimiters
+    if (problem["problem_site_type"] == "Codeforces"):
+        result = result.replace("$$$", "$")
+    elif (problem["problem_site_type"] == "DMOJ"):
+        result = result.replace("~", "$")
+    else: # LQDOJ
+        result = result.replace('\\(', '$')
+        result = result.replace('\\)', '$')
+        result = result.replace('\\[', '$$')
+        result = result.replace('\\]', '$$')
+
+    # Undo the MDXLatex's escape of some special characters (Line :50)
+    result = result.replace("\\_", "_")
+
+    # Replace some special cases
+    result = result.replace("\\left(", "\\ (")
+    result = result.replace("\\right)", ")")
+    result = result.replace("\\left[", "\\ [")
+    result = result.replace("\\right]", "]")
+    result = result.replace("\\left{", "\\ {")
+    result = result.replace("\\right}", "}")
+    result = result.replace("\\left|", "|")
+    result = result.replace("\\right|", "|")
+
+    # Remove domain from image links
+
+    if (problem["problem_site_type"] == "Codeforces"):
+        # Remove "https://codeforces.com/espresso/" from the image links
+        result = result.replace(f"https://{problem["problem_site"]}/espresso/", "")
+    elif (problem["problem_site_type"] == "DMOJ"):
+        # Remove "/martor/" from the image links
+        result = result.replace("/martor/", "")
+    else: # LQDOJ
+        # Remove "/media/pagedown-uploads/" from the image links
+        result = result.replace("/media/pagedown-uploads/", "")
+
+    # Replace image links with a template to process later
+    result = re.sub(r'!\[(.*?)\]\((.*?)\)', r'\n!!FileImage!!\2!!EndFileImage!!\n', result)
+
+    # Replace code blocks with a template to process later
+    result = re.sub(r'\`\`\`((.|\n)*?)\`\`\`', r'\n!!Codeblock!!\1!!EndCodeblock!!\n', result)
+
+    result = result.strip().strip("\n")
     
-    # Fix some special characters cases:
-    func_str = func_str.replace("\\*", "\\times ")
-    func_str = func_str.replace("*", "\\times ")
-    func_str = func_str.replace("×", "\\times ")
-    func_str = func_str.replace("...", "\\dots ")
-    func_str = func_str.replace("…", "\\dots ")
-    func_str = func_str.replace("≤", "\\le ")
-    func_str = func_str.replace("≥", "\\ge ")
-    func_str = func_str.replace("−", "-")
-
-    # Replace dollar sign 
-    func_str = func_str.replace("!!Dollar!!", "\\$")
-
-    return func_str
+    return result
 
 def convert_to_latex_base(problem: dict):
     """Base function to convert the problem content to LaTeX format."""
@@ -638,7 +643,7 @@ def convert_to_latex_base(problem: dict):
     # Replace the math functions in the latex content with the original math_function from markdown (the converter sucks)
     for i, math_func_need in enumerate(math_functions_need_replace):
         math_func_need_str = str(math_func_need[0]) # The entire math function
-        math_func_str = str(math_functions[i][0]) + process_math_function(str(math_functions[i][1])) + str(math_functions[i][0]) # The original math function
+        math_func_str = str(math_functions[i][0]) + util_process_equation(str(math_functions[i][1])) + str(math_functions[i][0]) # The original math function
         result = result.replace(math_func_need_str, math_func_str, 1)
 
     # Detect and convert the Markdown tables to LaTeX format
@@ -660,7 +665,7 @@ def convert_to_latex_base(problem: dict):
 
     # Replace the image links with the correct LaTeX format
     result = result.replace("!!FileImage!!", "\\includegraphics{")
-    result = result.replace("!!EndFileImage!!", "}")
+    result = result.replace("!!EndFileImage!!", "}\n\n")
 
     # No number in the section
     result = result.replace("section{", "section*{")
@@ -671,35 +676,7 @@ def convert_to_latex_base(problem: dict):
 
     return result
 
-def replace_old_testcase(problem_content_latex: str, testcase_str: str, safe_replace = True):
-    """Replace the old testcases in the problem with the new testcases being generated."""
-
-    problem_testcase_content = problem_content_latex
-    # Remove the content before the first testcase, if not found, raise a warning
-    for(indicator) in TESTCASE_INDICATOR_LIST:
-        ind = problem_testcase_content.find(indicator)
-        if ind != -1:
-            # Find the last '\n' before the indicator
-            ind = problem_testcase_content.rfind('\n', 0, ind)
-
-            # Remove the content before the indicator
-            problem_testcase_content = problem_testcase_content[ind:]
-            break
-    else:
-        warnings.warn("There is no clear indication of the testcases in the problem content. Please check the problem content.")
-    
-    # Remove the content after the last testcase
-    problem_testcase_content = problem_testcase_content[:problem_testcase_content.rfind('\\end{lstlisting}') + len('\\end{lstlisting}')]
-
-    if safe_replace:
-        problem_testcase_content_new = problem_testcase_content
-        # Remove every lstlisting block using regex
-        problem_testcase_content_new = re.sub(r'\\begin{lstlisting}((.|\n)*?)\\end{lstlisting}', '', problem_testcase_content_new, re.DOTALL | re.MULTILINE)
-        return problem_content_latex.replace(problem_testcase_content, "\n\n\\subsubsection*{Example}\n\n" + testcase_str + "\n\n" + problem_testcase_content_new)
-    else:
-        return problem_content_latex.replace(problem_testcase_content, "\n\n\\subsubsection*{Example}\n\n" + testcase_str)
-
-def convert_to_latex(problem: dict):
+def convert_to_latex_general(problem: dict):
     """Convert the problem content to LaTeX format."""
     result = convert_to_latex_base(problem)
 
@@ -708,7 +685,7 @@ def convert_to_latex(problem: dict):
         testcase_str = generate_testcase_table(problem["problem_testcases"], problem["problem_info_entries"]["input"], problem["problem_info_entries"]["output"])
 
         # Replace the old testcases format with the new testcases being generated
-        result = replace_old_testcase(result, testcase_str, (problem["problem_site_type"] != "Codeforces"))
+        result = util_replace_testcase(result, testcase_str, (problem["problem_site_type"] != "Codeforces"))
 
     # Replace only the first occurrence of "<root>" and last occurrence of "</root>" with the LaTeX header and footer
     problem_info = generate_problem_info(problem)
@@ -717,14 +694,14 @@ def convert_to_latex(problem: dict):
 
     return unicodedata.normalize("NFC", result)
 
-def convert_to_polygon_latex(problem: dict):
+def convert_to_latex_polygon(problem: dict):
     """Convert the problem content to LaTeX format for Polygon."""
     result = convert_to_latex_base(problem)
 
     # Insert a list with the testcases
     if len(problem["problem_testcases"]) > 0:
         testcase_str = generate_testcase_list(problem["problem_testcases"], problem["problem_info_entries"]["input"], problem["problem_info_entries"]["output"])
-        result = replace_old_testcase(result, testcase_str)
+        result = util_replace_testcase(result, testcase_str, (problem["problem_site_type"] != "Codeforces"))
 
     # Replace only the first occurrence of "<root>" and last occurrence of "</root>" with the LaTeX header and footer
     problem_info = generate_problem_info(problem)
@@ -733,14 +710,14 @@ def convert_to_polygon_latex(problem: dict):
 
     return unicodedata.normalize("NFC", result)
 
-def convert_to_template_latex(problem: dict):
+def convert_to_latex_template(problem: dict):
     """Convert the problem content to LaTeX format for Templates."""
     result = convert_to_latex_base(problem)
 
     # Insert a table with the testcases
     if len(problem["problem_testcases"]) > 0:
         testcase_str = generate_testcase_exmp(problem["problem_testcases"], problem["problem_info_entries"]["input"], problem["problem_info_entries"]["output"])
-        result = replace_old_testcase(result, testcase_str)
+        result = util_replace_testcase(result, testcase_str, (problem["problem_site_type"] != "Codeforces"))
 
     problem_info = "\\begin{statement}" + "[" + problem["problem_title"] + "]{" + problem["problem_code"] + "}{" + problem["problem_info_entries"]["input"] + "}{" + problem["problem_info_entries"]["output"] + "}{xxx}{yyy}{\\points{}}"
 
@@ -752,16 +729,6 @@ def convert_to_template_latex(problem: dict):
 
     return unicodedata.normalize("NFC", result)
 
-def create_folder(folder_name: str):
-    """Create a folder with the given name if it does not exist."""
-    import os
-
-    if not os.path.exists(folder_name):
-        os.makedirs(folder_name)
-        return True
-    
-    return False
-
 def main_converter(url: str, override = None):
     """Main function."""
     problem = {}
@@ -769,46 +736,29 @@ def main_converter(url: str, override = None):
 
     if "codeforces.com" in url:
         # Get the raw problem content from the Codeforces site
-
         print("[Codeforces] Getting the problem content...")
-        problem = get_codeforces_raw_problem(url, override)
-
-        problem_folder_name = problem["problem_site"] + '+' + problem["problem_code"]
-        print(f"[Codeforces] You can find the output files in the 'output/{problem_folder_name}' folder.")
-
-        if(create_folder(f"output/{problem_folder_name}")):
-            print("[Codeforces] Getting the Espresso files...")
-            get_espresso_files(problem["problem_content_raw"], problem["problem_site"], problem_folder_name)
+        problem = get_base_problem_codeforces(url, override)
     
     elif "lqdoj.edu.vn" in url:
         # Get the raw problem content from LQDOJ 
-
         print("[LQDOJ] Getting the problem content...")
-        problem = get_lqdoj_raw_problem(url, override)
-
-        problem_folder_name = problem["problem_site"] + '+' + problem["problem_code"]
-        print(f"[LQDOJ] You can find the output files in the 'output/{problem_folder_name}' folder.")
-
-        if(create_folder(f"output/{problem_folder_name}")):
-            print("[LQDOJ] Getting the Pagedown files...")
-            get_lqdoj_files(problem["problem_content_raw"], problem["problem_site"], problem_folder_name)
+        problem = get_base_problem_lqdoj(url, override)
     
     else:
         # Get the raw problem content from the DMOJ-themed site
-
         print("[DMOJ] Getting the problem content...")
-        problem = get_dmoj_raw_problem(url, override)
+        problem = get_base_problem_dmoj(url, override)
 
-        problem_folder_name = problem["problem_site"] + '+' + problem["problem_code"]
-        print(f"[DMOJ] You can find the output files in the 'output/{problem_folder_name}' folder.")
+    problem_folder_name = problem["problem_site"] + '+' + problem["problem_code"]
+    print(f"[{problem["problem_site_type"]}] You can find the output files in the 'output/{problem_folder_name}' folder.")
 
-        if(create_folder(f"output/{problem_folder_name}")):
-            print("[DMOJ] Getting the Martor files...")
-            get_martor_files(problem["problem_content_raw"], problem["problem_site"], problem_folder_name)
-    
+    if(os_create_folder(f"output/{problem_folder_name}")):
+        print(f"[{problem["problem_site_type"]}] Getting the embedded files...")
+        get_files(problem["problem_content_raw"], problem["problem_site"], problem_folder_name, problem["problem_site_type"])
+
     # Extract the testcases from the problem content
     print("Extracting the testcases...")
-    problem_testcases = extract_testcase(problem["problem_content_raw"], problem["problem_site_type"])
+    problem_testcases = get_testcases(problem["problem_content_raw"], problem["problem_site_type"])
 
     # Insert result and problem_testcases into a dictionary
     problem["problem_testcases"] = problem_testcases
@@ -820,17 +770,17 @@ def main_converter(url: str, override = None):
     
     # Convert the problem content to LaTeX formats
     print("Converting the problem content to General LaTeX...")
-    result = convert_to_latex(problem)
+    result = convert_to_latex_general(problem)
     with open(f"output/{problem_folder_name}/general.tex", "w", encoding="utf8") as file:
         file.write(result)
     
     print("Converting the problem content to Polygon LaTeX...")
-    result = convert_to_polygon_latex(problem)
+    result = convert_to_latex_polygon(problem)
     with open(f"output/{problem_folder_name}/polygon.tex", "w", encoding="utf8") as file:
         file.write(result)
     
     print("Converting the problem content to Template LaTeX...")
-    result = convert_to_template_latex(problem)
+    result = convert_to_latex_template(problem)
     with open(f"output/{problem_folder_name}/{problem["problem_code"]}.tex", "w", encoding="utf8") as file:
         file.write(result)
 
