@@ -195,6 +195,9 @@ def get_lqdoj_raw_problem(url: str, override = None):
     html_problem_content = html_response[1].split('<div id="comment-section">')[0]
     html_problem_content = "<div>\n" + html_problem_content.split('<hr>\n')[0].strip().strip("\n")
 
+    # Uses <h4> tag instead of <summary>, and </h4> instead of </summary> using regex
+    html_problem_content = re.sub(r'<summary>(.+?)</summary>', r'<h4>\1</h4>', html_problem_content)
+
     return {
         "problem_site_type": "LQDOJ",
         "problem_url": url,
@@ -390,17 +393,19 @@ def extract_testcase(problem_content: str, problem_site_type: str):
 
     # Replace to make the content easier to parse
     if problem_site_type == "DMOJ" or problem_site_type == "LQDOJ":
-        problem_content = problem_content.replace('><code>', '||begin||').replace('</code></pre>', '||end||')
+        problem_content = problem_content.replace('<code>', '||begin||').replace('</code></pre>', '||end||')
+
+        # Remove the content after the last testcase
+        problem_content = problem_content[:problem_content.rfind('||end||') + len('||end||')]
+
+        # Remove all HTML tags
+        problem_content = re.sub(r'<[^>]*>', '\n', problem_content)
     elif problem_site_type == "Codeforces":
         problem_content = problem_content.replace('</div><pre>', '||begin||').replace('</pre></div>', '||end||')
 
-    # Remove the content after the last testcase
-    problem_content = problem_content[:problem_content.rfind('||end||') + len('||end||')]
+        # Remove the content after the last testcase
+        problem_content = problem_content[:problem_content.rfind('||end||') + len('||end||')]
 
-    # Remove all HTML tags
-    if problem_site_type == "DMOJ":
-        problem_content = re.sub(r'<[^>]*>', '\n', problem_content)
-    elif problem_site_type == "Codeforces":
         # Codeforces uses <div> to differentiate the smaller testcases in a bigger one, 
         # so we need to only replace the end tag with a newline, the begin tag will just be deleted
         problem_content = re.sub(r'</[^>]*>', '\n', problem_content)
@@ -665,7 +670,7 @@ def convert_to_latex_base(problem: dict):
 
     return result
 
-def replace_old_testcase(problem_content_latex: str, testcase_str: str):
+def replace_old_testcase(problem_content_latex: str, testcase_str: str, safe_replace = True):
     """Replace the old testcases in the problem with the new testcases being generated."""
 
     problem_testcase_content = problem_content_latex
@@ -685,7 +690,13 @@ def replace_old_testcase(problem_content_latex: str, testcase_str: str):
     # Remove the content after the last testcase
     problem_testcase_content = problem_testcase_content[:problem_testcase_content.rfind('\\end{lstlisting}') + len('\\end{lstlisting}')]
 
-    return problem_content_latex.replace(problem_testcase_content, "\n\n" + testcase_str)
+    if safe_replace:
+        problem_testcase_content_new = problem_testcase_content
+        # Remove every lstlisting block using regex
+        problem_testcase_content_new = re.sub(r'\\begin{lstlisting}((.|\n)*?)\\end{lstlisting}', '', problem_testcase_content_new, re.DOTALL | re.MULTILINE)
+        return problem_content_latex.replace(problem_testcase_content, "\n\n\\subsubsection*{Example}\n\n" + testcase_str + "\n\n" + problem_testcase_content_new)
+    else:
+        return problem_content_latex.replace(problem_testcase_content, "\n\n\\subsubsection*{Example}\n\n" + testcase_str)
 
 def convert_to_latex(problem: dict):
     """Convert the problem content to LaTeX format."""
@@ -694,7 +705,9 @@ def convert_to_latex(problem: dict):
     # Insert a table with the testcases
     if len(problem["problem_testcases"]) > 0:
         testcase_str = generate_testcase_table(problem["problem_testcases"], problem["problem_info_entries"]["input"], problem["problem_info_entries"]["output"])
-        result = replace_old_testcase(result, testcase_str)
+
+        # Replace the old testcases format with the new testcases being generated
+        result = replace_old_testcase(result, testcase_str, (problem["problem_site_type"] != "Codeforces"))
 
     # Replace only the first occurrence of "<root>" and last occurrence of "</root>" with the LaTeX header and footer
     problem_info = generate_problem_info(problem)
