@@ -119,20 +119,30 @@ def get_base_problem_dmoj(url: str, override = None):
         entry_value = re.sub(r'<[^>]*>', '', entry_value).strip("\n")
         problem_info_entries[entry_name] = entry_value
 
-    html_problem_types = html_problem_details.split('<div id="problem-types">')[1]
-    html_problem_types = html_problem_types.split('class="toggled">')[1]
-    html_problem_types = html_problem_types.split('</div>')[0]
+    problem_types = []
+    try:
+        html_problem_types = html_problem_details.split('<div id="problem-types">')[1]
+        html_problem_types = html_problem_types.split('class="toggled">')[1]
+        html_problem_types = html_problem_types.split('</div>')[0]
 
-    problem_types = html_problem_types.split(',')
-    problem_types = [problem_type.strip() for problem_type in problem_types]
+        problem_types = html_problem_types.split(',')
+        problem_types = [problem_type.strip() for problem_type in problem_types]
+    except:
+        print("[DMOJ] Failed to get problem types.")
+        pass
 
-    html_problem_allowed_langs = html_problem_details.split('<div id="allowed-langs">')[1]
-    html_problem_allowed_langs = html_problem_allowed_langs.split('class="toggled">')[1]
-    html_problem_allowed_langs = html_problem_allowed_langs.split('</div>')[0]
+    problem_allowed_langs = []
+    try:
+        html_problem_allowed_langs = html_problem_details.split('<div id="allowed-langs">')[1]
+        html_problem_allowed_langs = html_problem_allowed_langs.split('class="toggled">')[1]
+        html_problem_allowed_langs = html_problem_allowed_langs.split('</div>')[0]
 
-    problem_allowed_langs = html_problem_allowed_langs.split(',')
-    problem_allowed_langs = [lang for lang in problem_allowed_langs if lang.find('<s title="') == -1]
-    problem_allowed_langs = [lang.strip() for lang in problem_allowed_langs]
+        problem_allowed_langs = html_problem_allowed_langs.split(',')
+        problem_allowed_langs = [lang for lang in problem_allowed_langs if lang.find('<s title="') == -1]
+        problem_allowed_langs = [lang.strip() for lang in problem_allowed_langs]
+    except:
+        print("[DMOJ] Failed to get allowed languages.")
+        pass
 
     # Second half is the problem content
     html_problem_content = html_response[1].split('<script type="text/javascript" src="/static/mathjax_config.js"></script>')[0]
@@ -275,6 +285,7 @@ def get_base_problem_codeforces(url: str, override = None):
             problem_type = problem_type.split('">')[1].split('</span>')[0].strip().strip("\n")
             problem_types.append(problem_type)
     except:
+        print("[Codeforces] Failed to get problem types.")
         pass
 
     # Cut the response to the part that starts the problem
@@ -307,7 +318,6 @@ def get_base_problem_codeforces(url: str, override = None):
     # Uses <h4> tag instead of <div class=\"section-title\">, and </h4> instead of </div> using regex
     html_problem_content = re.sub(r'<div class="section-title">(.+?)</div>', r'<h4>\1</h4>', html_problem_content)
     
-
     return {
         "problem_site_type": "Codeforces",
         "problem_url": url,
@@ -573,7 +583,7 @@ def convert_html_to_markdown(problem: dict):
     result = markdownify.markdownify(html, heading_style="ATX", bullets="*")
 
     # Replace dollar sign to prevent the math functions from being replaced
-    result = re.sub(r'\\\$', r'!!Dollar!!', result)
+    result = result.replace("\\$", "!!Dollar!!")
 
     # Change the latex math delimiters
     if (problem["problem_site_type"] == "Codeforces"):
@@ -585,9 +595,6 @@ def convert_html_to_markdown(problem: dict):
         result = result.replace('\\)', '$')
         result = result.replace('\\[', '$$')
         result = result.replace('\\]', '$$')
-
-    # Undo the MDXLatex's escape of some special characters (Line :50)
-    result = result.replace("\\_", "_")
 
     # Replace some special cases
     result = result.replace("\\left(", "\\ (")
@@ -611,6 +618,9 @@ def convert_html_to_markdown(problem: dict):
         # Remove "/media/pagedown-uploads/" from the image links
         result = result.replace("/media/pagedown-uploads/", "")
 
+    # Undo the escape of some special characters
+    result = result.replace("\\_", "_")
+
     # Replace image links with a template to process later
     result = re.sub(r'!\[(.*?)\]\((.*?)\)', r'\n!!FileImage!!\2!!EndFileImage!!\n', result)
 
@@ -623,7 +633,7 @@ def convert_html_to_markdown(problem: dict):
 
 def convert_to_latex_base(problem: dict):
     """Base function to convert the problem content to LaTeX format."""
-    markdown_content = convert_html_to_markdown(problem)
+    markdown_content = problem["problem_content_md"]
 
     md = markdown.Markdown()
     latex_mdx = MDXLatex.LaTeXExtension()
@@ -678,7 +688,7 @@ def convert_to_latex_base(problem: dict):
 
 def convert_to_latex_general(problem: dict):
     """Convert the problem content to LaTeX format."""
-    result = convert_to_latex_base(problem)
+    result = problem["problem_content_latex_base"]
 
     # Insert a table with the testcases
     if len(problem["problem_testcases"]) > 0:
@@ -696,7 +706,7 @@ def convert_to_latex_general(problem: dict):
 
 def convert_to_latex_polygon(problem: dict):
     """Convert the problem content to LaTeX format for Polygon."""
-    result = convert_to_latex_base(problem)
+    result = problem["problem_content_latex_base"]
 
     # Insert a list with the testcases
     if len(problem["problem_testcases"]) > 0:
@@ -712,7 +722,7 @@ def convert_to_latex_polygon(problem: dict):
 
 def convert_to_latex_template(problem: dict):
     """Convert the problem content to LaTeX format for Templates."""
-    result = convert_to_latex_base(problem)
+    result = problem["problem_content_latex_base"]
 
     # Insert a table with the testcases
     if len(problem["problem_testcases"]) > 0:
@@ -726,6 +736,35 @@ def convert_to_latex_template(problem: dict):
     problem_info += "\n\\InputFile\n\\OutputFile\n\\begin{Scoring}\n\n\\end{Scoring}\n"
     result = result.replace("<root>", problem_info, 1)
     result = result[::-1].replace("</root>"[::-1], "\\end{statement}"[::-1], 1)[::-1]
+
+    return unicodedata.normalize("NFC", result)
+
+def convert_to_md_dmoj(problem: dict):
+    """Convert the problem content to Markdown format for DMOJ."""
+    result = problem["problem_content_md"]
+
+    # First group is the number of dollar signs, second group is the content
+    math_functions = re.findall(r'(\${1,2})((?:(?!\1)[\s\S])*)\1', result, re.DOTALL)
+
+    # Replace the math functions in the latex content with the original math_function from markdown (the converter sucks)
+    for i, math_func_need in enumerate(math_functions):
+        math_func_need_str = str(math_func_need[0]) + str(math_func_need[1]) + str(math_func_need[0]) # The entire math function
+        math_func_str = str(math_functions[i][0]) + util_process_equation(str(math_functions[i][1])) + str(math_functions[i][0]) # Processed math function
+        result = result.replace(math_func_need_str, math_func_str, 1)
+    
+    # Change back the math delimiters
+    result = result.replace("$", "~")
+
+    # Change back the image links
+    result = result.replace("!!FileImage!!", "![](")
+    result = result.replace("!!EndFileImage!!", ")")
+
+    # Change back the code blocks
+    result = result.replace("!!Codeblock!!", "```")
+    result = result.replace("!!EndCodeblock!!", "```")
+
+    # Replace dollar sign
+    result = result.replace("!!Dollar!!", "\\$")
 
     return unicodedata.normalize("NFC", result)
 
@@ -763,11 +802,14 @@ def main_converter(url: str, override = None):
     # Insert result and problem_testcases into a dictionary
     problem["problem_testcases"] = problem_testcases
     
-    # Save the problem to a JSON file
-    print("Saving the problem to a JSON file...")
-    with open(f"output/{problem_folder_name}/problem.json", "w", encoding="utf8") as file:
-        json.dump(problem, file, indent=4, ensure_ascii=False)
-    
+    # Convert the base HTML problem content to Markdown
+    print("Converting the problem content to base Markdown...")
+    problem["problem_content_md"] = convert_html_to_markdown(problem)
+
+    # Convert the problem content to base LaTeX formats
+    print("Converting the problem content to base LaTeX...")
+    problem["problem_content_latex_base"] = convert_to_latex_base(problem)
+
     # Convert the problem content to LaTeX formats
     print("Converting the problem content to General LaTeX...")
     result = convert_to_latex_general(problem)
@@ -784,6 +826,16 @@ def main_converter(url: str, override = None):
     with open(f"output/{problem_folder_name}/{problem["problem_code"]}.tex", "w", encoding="utf8") as file:
         file.write(result)
 
+    print("Converting the problem content to Markdown for DMOJ...")
+    result = convert_to_md_dmoj(problem)
+    with open(f"output/{problem_folder_name}/dmoj.md", "w", encoding="utf8") as file:
+        file.write(result)
+
+    # Save the problem to a JSON file
+    print("Saving the problem to a JSON file...")
+    with open(f"output/{problem_folder_name}/problem.json", "w", encoding="utf8") as file:
+        json.dump(problem, file, indent=4, ensure_ascii=False)
+    
     return problem
 
 if __name__ == "__main__":
