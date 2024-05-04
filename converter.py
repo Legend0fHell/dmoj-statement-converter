@@ -34,7 +34,32 @@ LATEX_HEADER = """
 
 """
 
-TESTCASE_INDICATOR_LIST = ["Sample", "Example", "Ví dụ", "Test", "Testcase", "Case"]
+TESTCASE_INDICATOR_LIST = ["Sample", "Example", "Test", "Testcase", "Case", "Input", "Ví dụ"]
+
+DMOJ_INDICATOR_LIST = """
+dmoj.ca
+cyboj.ddns.net
+oj.qnoi.info
+oj.vnoi.info
+tinhoctre.vn
+coder.husc.edu.vn
+oj.chuyenhalong.edu.vn
+dmoj.ctu.edu.vn
+hnoj.edu.vn
+chvoj.edu.vn
+oj.giftedbat.edu.vn
+claoj.edu.vn
+laptrinhonline.club
+ptnkoj.com
+laptrinh.ictu.edu.vn
+oj.lequydon.net
+"""
+
+LQDOJ_INDICATOR_LIST = """
+lqdoj.edu.vn
+tleoj.edu.vn
+nbk.homes
+"""
 
 INSTRUCT_USING_MANUAL = """
 Can not convert the problem. You can try using Manual method instead:
@@ -95,8 +120,16 @@ def get_base_problem_dmoj(url: str, override = None):
         html_response = response.text
 
     # Extract the problem content from the response
-    html_response = html_response.split('<iframe name="raw_problem" id="raw_problem"></iframe>')
-
+    
+    # SPECIAL CASE: claoj.edu.vn
+    if "claoj.edu.vn" in problem_site:
+        html_response = html_response.split('<div id="content-left" class="split-common-content">')
+    else:
+        html_response = html_response.split('<iframe name="raw_problem" id="raw_problem"></iframe>')
+    
+    if len(html_response) == 1:
+        print("[DMOJ] Failed to split the problem content, will use the entire response.")
+        
     # First half is the problem details
     html_problem_details = html_response[0]
 
@@ -144,10 +177,15 @@ def get_base_problem_dmoj(url: str, override = None):
         print("[DMOJ] Failed to get allowed languages.")
         pass
 
-    # Second half is the problem content
-    html_problem_content = html_response[1].split('<script type="text/javascript" src="/static/mathjax_config.js"></script>')[0]
-    html_problem_content = html_problem_content.split('<hr>\n')[0].strip().strip("\n")
-
+    # Second half is the problem content using the last part of the split
+    html_problem_content = html_response[-1].split('src="/static/mathjax_config.js"></script>')[0]
+    
+    # Alternative method to extract the problem content
+    if len(html_response) == 1:
+        html_problem_content = '<div id="' + html_problem_content.split('<div id="')[-2].strip().strip("\n")
+    else:
+        html_problem_content = html_problem_content.split('<hr>\n')[0].strip().strip("\n")
+    
     return {
         "problem_site_type": "DMOJ",
         "problem_url": url,
@@ -181,15 +219,19 @@ def get_base_problem_lqdoj(url: str, override = None):
         html_response = response.text
 
     # Extract the problem content from the response
-    html_response = html_response.split('<div class="md-typeset content-description">')
-
+    # SPECIAL CASE: nbk.homes
+    if "nbk.homes" in problem_site:
+        html_response = html_response.split('<div id="content-left" class="split-common-content">')
+    else:
+        html_response = html_response.split('<div class="md-typeset')
+    
     # First half is the problem details
     html_problem_details = html_response[0]
 
     # Extract the problem title, info entries, types, allowed langs, and content
     problem_title = html_problem_details.split('<h2 ')[1].split('</h2>')[0].split('>')[1].strip()
     html_problem_info_entries = html_problem_details.split('fa-fw"></i><span ')[1:]
-
+    
     problem_info_entries = {}
     for entry in html_problem_info_entries:
         entry = entry.split('</div>')[0]
@@ -213,11 +255,17 @@ def get_base_problem_lqdoj(url: str, override = None):
     problem_types = [problem_type.strip() for problem_type in problem_types]
 
     # Second half is the problem content
-    html_problem_content = html_response[1].split('<div id="comment-section">')[0]
-    html_problem_content = "<div>\n" + html_problem_content.split('<hr>\n')[0].strip().strip("\n")
+    html_problem_content = html_response[-1].split('<div id="comment-section">')[0]
+    html_problem_content = "<div>\n" + html_problem_content.split('<hr>\n')[0].split('">',1)[-1].strip().strip("\n")
 
     # Uses <h4> tag instead of <summary>, and </h4> instead of </summary> using regex
     html_problem_content = re.sub(r'<summary>(.+?)</summary>', r'<h4>\1</h4>', html_problem_content)
+
+    # Replace the math/tex script if exists
+    html_problem_content = re.sub(r'<script type="math/tex">(.+?)</script>', r'\(\1\)', html_problem_content)
+
+    # Nuke the mathjax script preview
+    html_problem_content = re.sub(r'<span class="MathJax_Preview">(.+?)</span>', r'', html_problem_content)
 
     return {
         "problem_site_type": "LQDOJ",
@@ -347,12 +395,18 @@ def get_files(problem_content: str, problem_site: str, problem_folder_name: str,
     # Remove the duplicates
     files = list(set(files))
 
+    # Remove empty strings
+    files = [file for file in files if file != ""]
+
     # Download the files
     for i, file in enumerate(files):
-        print(f"[{problem_site_type}] Downloading {file}... ({i + 1}/{len(files)})")
+        print(f"[{problem_site_type}] Downloading internal file {file}... ({i + 1}/{len(files)})")
 
         response = None
-        if problem_site_type == "DMOJ":
+        # SPECIAL CASE: oj.lequydon.net
+        if "oj.lequydon.net" in problem_site:
+            response = requests.get(f"https://{problem_site}/media/martor{file}")
+        elif problem_site_type == "DMOJ":
             response = requests.get(f"https://{problem_site}/martor{file}")
         elif problem_site_type == "LQDOJ":
             response = requests.get(f"https://{problem_site}/media/pagedown-uploads{file}")
@@ -361,6 +415,23 @@ def get_files(problem_content: str, problem_site: str, problem_folder_name: str,
         
         if(response.status_code != 200):
             raise Exception("Failed to get Martor file from DMOJ-themed site")
+
+        # Save the file
+        with open(f"output/{problem_folder_name}{file}", "wb") as f:
+            f.write(response.content)
+
+    # Imgur files
+    external_files = re.findall(r'\/i.imgur.com(.+?)"', problem_content)
+    external_files = list(set(external_files))
+    external_files = [file for file in external_files if file != ""]
+
+    for i, file in enumerate(external_files):
+        print(f"[External-Imgur] Downloading external file {file}... ({i + 1}/{len(external_files)})")
+
+        response = requests.get(f"https://i.imgur.com{file}")
+        if(response.status_code != 200):
+            print("[External-Imgur] Failed to get Imgur file, but you can try to download it manually.")
+            continue
 
         # Save the file
         with open(f"output/{problem_folder_name}{file}", "wb") as f:
@@ -405,13 +476,19 @@ def get_testcases(problem_content: str, problem_site_type: str):
     # Remove the leading and trailing whitespaces
     testcases = [testcase.strip() for testcase in testcases]
 
+    # Remove part before ||begin|| and after ||end||, if not found, ignore
+    testcases = [testcase.split('||begin||')[-1].split('||end||')[0] for testcase in testcases]
+
     if len(testcases) % 2 != 0:
         warnings.warn("There is an odd number of testcases, please check the problem content.")
     
     # Split the testcases into input and output
     testcases_separated = []
-    for i in range(0, len(testcases), 2):
-        testcases_separated.append([testcases[i], testcases[i + 1]])
+    try:
+        for i in range(0, len(testcases), 2):
+            testcases_separated.append([testcases[i], testcases[i + 1]])
+    except:
+        pass
 
     return testcases_separated
 
@@ -517,6 +594,7 @@ def util_replace_testcase(problem_content_latex: str, testcase_str: str, safe_re
             break
     else:
         warnings.warn("There is no clear indication of the testcases in the problem content. Please check the problem content.")
+        return problem_content_latex
     
     # Remove the content after the last testcase
     problem_testcase_content = problem_testcase_content[:problem_testcase_content.rfind('\\end{lstlisting}') + len('\\end{lstlisting}')]
@@ -588,13 +666,17 @@ def convert_html_to_markdown(problem: dict):
     # Change the latex math delimiters
     if (problem["problem_site_type"] == "Codeforces"):
         result = result.replace("$$$", "$")
-    elif (problem["problem_site_type"] == "DMOJ"):
-        result = result.replace("~", "$")
-    else: # LQDOJ
+
+    # SPECIAL CASE: laptrinhonline.club and laptrinh.ictu.edu.vn
+    elif (problem["problem_site_type"] == "LQDOJ" 
+          or "laptrinhonline.club" in problem["problem_site"]
+          or "laptrinh.ictu.edu.vn" in problem["problem_site"]):
         result = result.replace('\\(', '$')
         result = result.replace('\\)', '$')
         result = result.replace('\\[', '$$')
         result = result.replace('\\]', '$$')
+    elif (problem["problem_site_type"] == "DMOJ"):
+        result = result.replace("~", "$")
 
     # Replace some special cases
     result = result.replace("\\left(", "\\ (")
@@ -611,13 +693,21 @@ def convert_html_to_markdown(problem: dict):
     if (problem["problem_site_type"] == "Codeforces"):
         # Remove "https://codeforces.com/espresso/" from the image links
         result = result.replace(f"https://{problem["problem_site"]}/espresso/", "")
+        
+    # SPECIAL CASE: oj.lequydon.net
+    elif ("oj.lequydon.net" in problem["problem_site"]):
+        # Remove "/media/martor/" from the image links
+        result = result.replace("/media/martor/", "")
     elif (problem["problem_site_type"] == "DMOJ"):
         # Remove "/martor/" from the image links
         result = result.replace("/martor/", "")
     else: # LQDOJ
         # Remove "/media/pagedown-uploads/" from the image links
         result = result.replace("/media/pagedown-uploads/", "")
-
+    
+    # Remove the mathoid link
+    result = re.sub(r'!\[(.*?)\]\((.*?mathoid.*?)\)', '', result, flags=re.DOTALL)
+    
     # Undo the escape of some special characters
     result = result.replace("\\_", "_")
 
@@ -691,8 +781,10 @@ def convert_to_latex_general(problem: dict):
     result = problem["problem_content_latex_base"]
 
     # Insert a table with the testcases
-    if len(problem["problem_testcases"]) > 0:
-        testcase_str = generate_testcase_table(problem["problem_testcases"], problem["problem_info_entries"]["input"], problem["problem_info_entries"]["output"])
+    if len(problem.get("problem_testcases", [])) > 0:
+        testcase_str = generate_testcase_table(problem.get("problem_testcases", []), 
+                                               problem.get("problem_info_entries").get("input", "Input"), 
+                                               problem.get("problem_info_entries").get("output", "Output"))
 
         # Replace the old testcases format with the new testcases being generated
         result = util_replace_testcase(result, testcase_str, (problem["problem_site_type"] != "Codeforces"))
@@ -709,8 +801,10 @@ def convert_to_latex_polygon(problem: dict):
     result = problem["problem_content_latex_base"]
 
     # Insert a list with the testcases
-    if len(problem["problem_testcases"]) > 0:
-        testcase_str = generate_testcase_list(problem["problem_testcases"], problem["problem_info_entries"]["input"], problem["problem_info_entries"]["output"])
+    if len(problem.get("problem_testcases", [])) > 0:
+        testcase_str = generate_testcase_table(problem.get("problem_testcases", []), 
+                                               problem.get("problem_info_entries").get("input", "Input"), 
+                                               problem.get("problem_info_entries").get("output", "Output"))
         result = util_replace_testcase(result, testcase_str, (problem["problem_site_type"] != "Codeforces"))
 
     # Replace only the first occurrence of "<root>" and last occurrence of "</root>" with the LaTeX header and footer
@@ -725,11 +819,15 @@ def convert_to_latex_template(problem: dict):
     result = problem["problem_content_latex_base"]
 
     # Insert a table with the testcases
-    if len(problem["problem_testcases"]) > 0:
-        testcase_str = generate_testcase_exmp(problem["problem_testcases"], problem["problem_info_entries"]["input"], problem["problem_info_entries"]["output"])
+    if len(problem.get("problem_testcases", [])) > 0:
+        testcase_str = generate_testcase_table(problem.get("problem_testcases", []), 
+                                               problem.get("problem_info_entries").get("input", "Input"), 
+                                               problem.get("problem_info_entries").get("output", "Output"))
         result = util_replace_testcase(result, testcase_str, (problem["problem_site_type"] != "Codeforces"))
 
-    problem_info = "\\begin{statement}" + "[" + problem["problem_title"] + "]{" + problem["problem_code"] + "}{" + problem["problem_info_entries"]["input"] + "}{" + problem["problem_info_entries"]["output"] + "}{xxx}{yyy}{\\points{}}"
+    problem_info = "\\begin{statement}" + "[" + problem["problem_title"] + "]{" + problem["problem_code"] + "}{"
+    problem_info += problem.get("problem_info_entries").get("input", "Input") + "}{" 
+    problem_info += problem.get("problem_info_entries").get("output", "Output") + "}{xxx}{yyy}{\\points{}}"
 
     problem_info += generate_problem_info(problem)
 
@@ -773,18 +871,38 @@ def main_converter(url: str, override = None):
     problem = {}
     problem_folder_name = ""
 
+    dmoj_list = DMOJ_INDICATOR_LIST.strip().strip("\n").splitlines()
+    lqdoj_list = LQDOJ_INDICATOR_LIST.strip().strip("\n").splitlines()
+
+    detected = 0
     if "codeforces.com" in url:
         # Get the raw problem content from the Codeforces site
         print("[Codeforces] Getting the problem content...")
+        detected = 1
         problem = get_base_problem_codeforces(url, override)
     
-    elif "lqdoj.edu.vn" in url:
-        # Get the raw problem content from LQDOJ 
-        print("[LQDOJ] Getting the problem content...")
-        problem = get_base_problem_lqdoj(url, override)
+    for lqdoj_indicator in lqdoj_list:
+        lqdoj_indicator = lqdoj_indicator.strip().strip("\n")
+        if lqdoj_indicator in url:
+            # Get the raw problem content from LQDOJ 
+            print("[LQDOJ] Getting the problem content...")
+            detected = 1
+            problem = get_base_problem_lqdoj(url, override)
+            break
     
-    else:
-        # Get the raw problem content from the DMOJ-themed site
+    for dmoj_indicator in dmoj_list:
+        dmoj_indicator = dmoj_indicator.strip().strip("\n")
+        if dmoj_indicator in url:
+            # Get the raw problem content from the DMOJ-themed site
+            print("[DMOJ] Getting the problem content...")
+            detected = 1
+            problem = get_base_problem_dmoj(url, override)
+            break
+    
+    if(detected == 0):
+        print("The site is not officially supported. Defaulting to DMOJ...")
+
+        # Get the raw problem content from the DMOJ site
         print("[DMOJ] Getting the problem content...")
         problem = get_base_problem_dmoj(url, override)
 
