@@ -802,7 +802,7 @@ def convert_to_latex_polygon(problem: dict):
 
     # Insert a list with the testcases
     if len(problem.get("problem_testcases", [])) > 0:
-        testcase_str = generate_testcase_table(problem.get("problem_testcases", []), 
+        testcase_str = generate_testcase_list(problem.get("problem_testcases", []), 
                                                problem.get("problem_info_entries").get("input", "Input"), 
                                                problem.get("problem_info_entries").get("output", "Output"))
         result = util_replace_testcase(result, testcase_str, (problem["problem_site_type"] != "Codeforces"))
@@ -820,7 +820,7 @@ def convert_to_latex_template(problem: dict):
 
     # Insert a table with the testcases
     if len(problem.get("problem_testcases", [])) > 0:
-        testcase_str = generate_testcase_table(problem.get("problem_testcases", []), 
+        testcase_str = generate_testcase_exmp(problem.get("problem_testcases", []), 
                                                problem.get("problem_info_entries").get("input", "Input"), 
                                                problem.get("problem_info_entries").get("output", "Output"))
         result = util_replace_testcase(result, testcase_str, (problem["problem_site_type"] != "Codeforces"))
