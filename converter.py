@@ -281,6 +281,11 @@ def get_base_problem_lqdoj(url: str, override = None):
 def get_base_problem_codeforces(url: str, override = None):
     """Return and extract the raw problem content from a Codeforces site."""
 
+    # Convert problemset type URL to contest type URL using regex
+    # https://codeforces.com/problemset/problem/75/C -> https://codeforces.com/contest/75/problem/C
+    if "/problemset/problem/" in url:
+        url = re.sub(r'\/problemset\/problem\/(\d+)(\/[A-Z0-9]+)', r'/contest/\1/problem\2', url)
+
     # Problem code is the part after the '/problem/' in the URL
     
     # Contest ID is the part after the '/contest/' in the URL
@@ -365,6 +370,20 @@ def get_base_problem_codeforces(url: str, override = None):
 
     # Uses <h4> tag instead of <div class=\"section-title\">, and </h4> instead of </div> using regex
     html_problem_content = re.sub(r'<div class="section-title">(.+?)</div>', r'<h4>\1</h4>', html_problem_content)
+    
+    # Try to replace as much old tex-span style with the new format as possible
+    html_problem_content = re.sub(r'<span class="tex-span">(.+?)</span>', r'$$$\1$$$', html_problem_content)
+
+    # Try to replace as much old tex-inline style with the new format as possible
+    # First group is the number of dollar signs, second group is the content
+    math_functions = re.findall(r'(\${1,3})((?:(?!\1)[\s\S])*)\1', html_problem_content, re.DOTALL)
+    
+    for i, math_func_need in enumerate(math_functions):
+        math_func_need_str = str(math_func_need[0]) + str(math_func_need[1]) + str(math_func_need[0]) # The entire math function
+        math_func_str = math_func_need_str.replace('<i>', '').replace('</i>', '') # The math function without <i> tags
+        math_func_str = math_func_str.replace('<sup class="upper-index">', '^{').replace('</sup>', '}') # Replace upper index
+        math_func_str = math_func_str.replace('<sup class="lower-index">', '_{').replace('</sup>', '}') # Replace lower index
+        html_problem_content = html_problem_content.replace(math_func_need_str, math_func_str, 1)
     
     return {
         "problem_site_type": "Codeforces",
@@ -468,6 +487,11 @@ def get_testcases(problem_content: str, problem_site_type: str):
         # Codeforces uses <div> to differentiate the smaller testcases in a bigger one, 
         # so we need to only replace the end tag with a newline, the begin tag will just be deleted
         problem_content = re.sub(r'</[^>]*>', '\n', problem_content)
+
+        # some old problems uses <br /> instead of <div>
+        problem_content = re.sub(r'<br />', '\n', problem_content)
+
+        # remove other tags
         problem_content = re.sub(r'<[^>]*>', '', problem_content)
 
     # Extract the testcases from "||begin||" to "||end||"
@@ -619,6 +643,7 @@ def util_process_equation(func_str: str):
     func_str = func_str.replace("≤", "\\le ")
     func_str = func_str.replace("≥", "\\ge ")
     func_str = func_str.replace("−", "-")
+    func_str = func_str.replace(" ", "")
 
     # Replace dollar sign 
     func_str = func_str.replace("!!Dollar!!", "\\$")
