@@ -34,7 +34,7 @@ LATEX_HEADER = """
 
 """
 
-TESTCASE_INDICATOR_LIST = ["Sample", "Example", "Test", "Testcase", "Case", "Input", "Ví dụ"]
+TESTCASE_INDICATOR_LIST = ["Sample", "Example", "Test", "Testcase", "Case", "Input", "Ví dụ", "Dữ liệu vào"]
 
 DMOJ_INDICATOR_LIST = """
 dmoj.ca
@@ -278,6 +278,82 @@ def get_base_problem_lqdoj(url: str, override = None):
         "problem_content_raw": html_problem_content
     }
 
+def get_base_problem_csloj(url: str, override = None):
+    """Return and extract the raw problem content from CSLOJ."""
+
+    # Problem code is the part after the '/problem/' in the URL
+    problem_code = url.split("/problem/")[1]
+
+    # Remove the query string from the problem code
+    problem_code = re.sub(r'\/|\?.*', '', problem_code)
+
+    # Problem site is the part before the '/problem/' in the URL
+    problem_site = url.split("/problem/")[0]
+    problem_site = problem_site.split("://")[1]
+
+    html_response = override
+    if override == None:
+        response = requests.get(url)
+        if(response.status_code != 200):
+            raise Exception("Failed to get problem from CSLOJ")
+        html_response = response.text
+
+    # Extract the problem content from the response
+    html_response = html_response.split('<div class="ui grid">')
+
+    # First half is the problem details
+    html_problem_details = html_response[0]
+
+    # Extract the problem title, info entries, types, allowed langs, and content
+    problem_title = html_problem_details.split('<h1 ')[1].split('</h1>')[0].split('>')[1].strip()
+    problem_title = problem_title.replace("–", "-")
+    html_problem_info_entries = html_problem_details.split('<span class="ui label">')[1:]
+    
+    problem_info_entries = {}
+    for entry in html_problem_info_entries:
+        entry = entry.split('</span>')[0]
+        if (entry == "Nhập/xuất từ luồng chuẩn"):
+            problem_info_entries["input"] = "stdin"
+            problem_info_entries["output"] = "stdout"
+            continue
+        
+        entry_name = entry.split(': ')[0].strip().lower()
+        entry_value = entry.split(': ')[1].strip()
+
+        # Remove all HTML tags in the entry value
+        entry_value = re.sub(r'<[^>]*>', '', entry_value).strip("\n")
+        problem_info_entries[entry_name] = entry_value
+
+    html_problem_types = html_response[1].split('<h3 class="ui top attached block header">Đề bài</h3>')[1].split('<div class="row">')[1]
+    html_problem_types = html_problem_types.split(' label">')[1:]
+
+    problem_types = [problem_type.split("</a>")[0].strip().strip('\n') for problem_type in html_problem_types]
+
+    # Special tag: ***** one that indicate the difficulty of the problem
+    for prob_type in problem_types:
+        rating = prob_type.count("⭐")
+        if rating > 0:
+            problem_types.remove(prob_type)
+            problem_info_entries["độ khó"] = str(rating) + "/5 sao"
+    
+    # Second half is the problem content
+    html_problem_content = html_response[1].split('<h3 class="ui top attached block header">Đề bài</h3>')[1]
+    html_problem_content = html_problem_content.split('<div class="row">')[0].strip().strip("\n")
+
+    # Nuke the mathjax script preview
+    html_problem_content = re.sub(r'<span class="mjpage"><svg xmlns((.|\n)+?)<title id="MathJax(.+?)">(.+?)</title>((.|\n)+?)</svg></span>', r'\(\4\)', html_problem_content, count = 0, flags=re.MULTILINE | re.DOTALL)
+
+    return {
+        "problem_site_type": "CSLOJ",
+        "problem_url": url,
+        "problem_site": problem_site,
+        "problem_code": problem_code,
+        "problem_title": problem_title,
+        "problem_info_entries": problem_info_entries,
+        "problem_types": problem_types,
+        "problem_content_raw": html_problem_content
+    }
+
 def get_base_problem_codeforces(url: str, override = None):
     """Return and extract the raw problem content from a Codeforces site."""
 
@@ -410,6 +486,8 @@ def get_files(problem_content: str, problem_site: str, problem_folder_name: str,
         files = re.findall(r'\/media/pagedown-uploads(.+?)"', problem_content)
     elif problem_site_type == "Codeforces":
         files = re.findall(r'\/espresso(.+?)"', problem_content)
+    elif problem_site_type == "CSLOJ":
+        files = re.findall(r'\/images/problems(.+?)"', problem_content)
 
     # Remove the duplicates
     files = list(set(files))
@@ -431,12 +509,14 @@ def get_files(problem_content: str, problem_site: str, problem_folder_name: str,
             response = requests.get(f"https://{problem_site}/media/pagedown-uploads{file}")
         elif problem_site_type == "Codeforces":
             response = requests.get(f"https://{problem_site}/espresso{file}")
+        elif problem_site_type == "CSLOJ":
+            response = requests.get(f"http://{problem_site}/images/problems{file}")
         
         if(response.status_code != 200):
             raise Exception("Failed to get Martor file from DMOJ-themed site")
 
         # Save the file
-        with open(f"output/{problem_folder_name}{file}", "wb") as f:
+        with open(f"output/{problem_folder_name}/{str(file).split("/")[-1]}", "wb") as f:
             f.write(response.content)
 
     # Imgur files
@@ -470,7 +550,7 @@ def get_testcases(problem_content: str, problem_site_type: str):
         warnings.warn("There is no clear indication of the testcases in the problem content. Please check the problem content.")
 
     # Replace to make the content easier to parse
-    if problem_site_type == "DMOJ" or problem_site_type == "LQDOJ":
+    if problem_site_type == "DMOJ" or problem_site_type == "LQDOJ" or problem_site_type == "CSLOJ":
         problem_content = problem_content.replace('<code>', '||begin||').replace('</code></pre>', '||end||')
 
         # Remove the content after the last testcase
@@ -644,6 +724,8 @@ def util_process_equation(func_str: str):
     func_str = func_str.replace("≥", "\\ge ")
     func_str = func_str.replace("−", "-")
     func_str = func_str.replace(" ", "")
+    func_str = func_str.replace("’", "'")
+    func_str = func_str.replace("⇔", "\\Leftrightarrow")
 
     # Replace dollar sign 
     func_str = func_str.replace("!!Dollar!!", "\\$")
@@ -694,6 +776,7 @@ def convert_html_to_markdown(problem: dict):
 
     # SPECIAL CASE: laptrinhonline.club and laptrinh.ictu.edu.vn
     elif (problem["problem_site_type"] == "LQDOJ" 
+          or problem["problem_site_type"] == "CSLOJ"
           or "laptrinhonline.club" in problem["problem_site"]
           or "laptrinh.ictu.edu.vn" in problem["problem_site"]):
         result = result.replace('\\(', '$')
@@ -726,9 +809,12 @@ def convert_html_to_markdown(problem: dict):
     elif (problem["problem_site_type"] == "DMOJ"):
         # Remove "/martor/" from the image links
         result = result.replace("/martor/", "")
-    else: # LQDOJ
+    elif (problem["problem_site_type"] == "LQDOJ"):
         # Remove "/media/pagedown-uploads/" from the image links
         result = result.replace("/media/pagedown-uploads/", "")
+    elif (problem["problem_site_type"] == "CSLOJ"):
+        # Remove "/images/problems/" from the image links
+        result = re.sub(r'/images/problems/(.+?)/', r'', result, flags=re.DOTALL)
     
     # Remove the mathoid link
     result = re.sub(r'!\[(.*?)\]\((.*?mathoid.*?)\)', '', result, flags=re.DOTALL)
@@ -906,6 +992,12 @@ def main_converter(url: str, override = None):
         detected = 1
         problem = get_base_problem_codeforces(url, override)
     
+    if "csloj.ddns.net" in url:
+        # Get the raw problem content from the CSLOJ site
+        print("[CSLOJ] Getting the problem content...")
+        detected = 1
+        problem = get_base_problem_csloj(url, override)
+
     for lqdoj_indicator in lqdoj_list:
         lqdoj_indicator = lqdoj_indicator.strip().strip("\n")
         if lqdoj_indicator in url:
