@@ -513,7 +513,7 @@ def get_files(problem_content: str, problem_site: str, problem_folder_name: str,
             response = requests.get(f"http://{problem_site}/images/problems{file}")
         
         if(response.status_code != 200):
-            raise Exception("Failed to get Martor file from DMOJ-themed site")
+            raise Exception("Failed to get file from the site")
 
         # Save the file
         with open(f"output/{problem_folder_name}/{str(file).split("/")[-1]}", "wb") as f:
@@ -537,6 +537,27 @@ def get_files(problem_content: str, problem_site: str, problem_folder_name: str,
             f.write(response.content)
 
     return files
+
+def get_zip_test_files(problem_content: str, url: str, problem_folder_name: str, problem_site_type: str):
+    # Get the test files from the server (if any).
+    if problem_site_type == "CSLOJ":
+        # Problem code is the part after the '/problem/' in the URL
+        problem_code = url.split("/problem/")[1]
+
+        # Remove the query string from the problem code
+        problem_code = re.sub(r'\/|\?.*', '', problem_code)
+
+        print(f"[{problem_site_type}] Downloading ZIP test file testcases-{problem_code}.zip...")
+        response = requests.get(f"http://csloj.ddns.net/problem/{problem_code}/testdata/download")
+        
+        if(response.status_code != 200):
+            raise Exception("Failed to get ZIP test file from CSLOJ")
+
+        # Save the file
+        with open(f"output/{problem_folder_name}/testcases-{problem_code}.zip", "wb") as f:
+            f.write(response.content)
+
+    print(f"[{problem_site_type}] Downloaded.")
 
 def get_testcases(problem_content: str, problem_site_type: str):
     """Extract the testcases from the problem content."""
@@ -1029,6 +1050,8 @@ def main_converter(url: str, override = None):
     if(os_create_folder(f"output/{problem_folder_name}")):
         print(f"[{problem["problem_site_type"]}] Getting the embedded files...")
         get_files(problem["problem_content_raw"], problem["problem_site"], problem_folder_name, problem["problem_site_type"])
+        print(f"[{problem["problem_site_type"]}] Getting the test case file...")
+        get_zip_test_files(problem["problem_content_raw"], url, problem_folder_name, problem["problem_site_type"])
 
     # Extract the testcases from the problem content
     print("Extracting the testcases...")
