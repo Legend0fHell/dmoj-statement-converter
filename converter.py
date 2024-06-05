@@ -735,6 +735,10 @@ def util_replace_testcase(problem_content_latex: str, testcase_str: str, safe_re
 def util_process_equation(func_str: str):
     """Process the math functions to be converted to LaTeX format."""
     
+    # Re-escape some special characters
+    func_str = func_str.replace("\\%", "%")
+    func_str = func_str.replace("%", "\\%")
+
     # Fix some special characters cases:
     func_str = func_str.replace("\\*", "\\times ")
     func_str = func_str.replace("*", "\\times ")
