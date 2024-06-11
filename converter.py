@@ -255,7 +255,11 @@ def get_base_problem_lqdoj(url: str, override = None):
     problem_types = [problem_type.strip() for problem_type in problem_types]
 
     # Second half is the problem content
-    html_problem_content = html_response[-1].split('<div id="comment-section">')[0]
+    if(len(html_response) == 1):
+        html_problem_content = html_response[-1]
+    else:
+        html_problem_content = html_response[1]
+    html_problem_content = html_problem_content.split('<div id="comment-section">')[0]
     html_problem_content = "<div>\n" + html_problem_content.split('<hr>\n')[0].split('">',1)[-1].strip().strip("\n")
 
     # Uses <h4> tag instead of <summary>, and </h4> instead of </summary> using regex
@@ -687,9 +691,11 @@ def generate_problem_info(problem: dict):
 
         for entry_name, entry_value in problem["problem_info_entries"].items():
             problem_info += f"\\textbf{{{entry_name}}}: {entry_value} \\\\\n"
-            
-        problem_info += f"\\textbf{{Tags}}: {', '.join(problem['problem_types'])} \\\\\n"
-        problem_info += f"\\textbf{{Ngôn ngữ cho phép}}: {', '.join(problem['problem_allowed_langs'])} \\\\\n"
+        
+        if len(problem['problem_types']) > 0:
+            problem_info += f"\\textbf{{Tags}}: {', '.join(problem['problem_types'])} \\\\\n"
+        if len(problem['problem_allowed_langs']) > 0:
+            problem_info += f"\\textbf{{Ngôn ngữ cho phép}}: {', '.join(problem['problem_allowed_langs'])} \\\\\n"
     except:
         pass
 
