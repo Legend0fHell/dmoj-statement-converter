@@ -688,7 +688,10 @@ def generate_problem_info(problem: dict):
     
     try:
         problem_info += f"\\textbf{{Tên bài}}: {problem['problem_title']} \\\\\n"
-        problem_info += f"\\textbf{{Tên bài 2}}: {str(problem['problem_title']).split(". ")[-1].capitalize()} [{str(problem['problem_code']).upper()}] \\\\\n"
+        if(problem["problem_site_type"] == "CSLOJ"):
+            problem_info += f"\\textbf{{Tên bài 2}}: {str(problem['problem_title']).split("- ")[-1].capitalize()} [{str(problem['problem_title']).split(" -")[0].split(". ")[-1].upper()}] \\\\\n"
+        else:
+            problem_info += f"\\textbf{{Tên bài 2}}: {str(problem['problem_title']).split(". ")[-1].capitalize()} [{str(problem['problem_code']).upper()}] \\\\\n"
 
         for entry_name, entry_value in problem["problem_info_entries"].items():
             problem_info += f"\\textbf{{{entry_name}}}: {entry_value} \\\\\n"
