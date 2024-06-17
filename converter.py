@@ -688,6 +688,7 @@ def generate_problem_info(problem: dict):
     
     try:
         problem_info += f"\\textbf{{Tên bài}}: {problem['problem_title']} \\\\\n"
+        problem_info += f"\\textbf{{Tên bài 2}}: {str(problem['problem_title']).split(". ")[-1].capitalize()} [{str(problem['problem_code']).upper()}] \\\\\n"
 
         for entry_name, entry_value in problem["problem_info_entries"].items():
             problem_info += f"\\textbf{{{entry_name}}}: {entry_value} \\\\\n"
@@ -973,7 +974,7 @@ def convert_to_latex_template(problem: dict):
 
     problem_info += generate_problem_info(problem)
 
-    problem_info += "\n\\InputFile\n\\OutputFile\n\\begin{Scoring}\n\n\\end{Scoring}\n"
+    problem_info += "\n\\InputFile\n\\OutputFile\n\\begin{scoring}\n\n\\end{scoring}\n"
     result = result.replace("<root>", problem_info, 1)
     result = result[::-1].replace("</root>"[::-1], "\\end{statement}"[::-1], 1)[::-1]
 
