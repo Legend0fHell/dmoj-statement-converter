@@ -462,7 +462,9 @@ def get_base_problem_codeforces(url: str, override = None):
         math_func_need_str = str(math_func_need[0]) + str(math_func_need[1]) + str(math_func_need[0]) # The entire math function
         math_func_str = math_func_need_str.replace('<i>', '').replace('</i>', '') # The math function without <i> tags
         math_func_str = math_func_str.replace('<sup class="upper-index">', '^{').replace('</sup>', '}') # Replace upper index
+        math_func_str = math_func_str.replace('<sub class="upper-index">', '^{').replace('</sub>', '}') # Replace upper index
         math_func_str = math_func_str.replace('<sup class="lower-index">', '_{').replace('</sup>', '}') # Replace lower index
+        math_func_str = math_func_str.replace('<sub class="lower-index">', '_{').replace('</sub>', '}') # Replace lower index
         html_problem_content = html_problem_content.replace(math_func_need_str, math_func_str, 1)
     
     return {
@@ -687,12 +689,33 @@ def generate_problem_info(problem: dict):
         problem_info += f"\\textbf{{Contest}}: {problem['problem_contest_name']} \\\\\n"
     
     try:
+        # First name is the problem title
         problem_info += f"\\textbf{{Tên bài}}: {problem['problem_title']} \\\\\n"
-        if(problem["problem_site_type"] == "CSLOJ"):
-            problem_info += f"\\textbf{{Tên bài 2}}: {str(problem['problem_title']).split("- ")[-1].capitalize()} [{str(problem['problem_title']).split(" -")[0].split(". ")[-1].upper()}] \\\\\n"
-        else:
-            problem_info += f"\\textbf{{Tên bài 2}}: {str(problem['problem_title']).split(". ")[-1].capitalize()} [{str(problem['problem_code']).upper()}] \\\\\n"
 
+        # Second name is the problem title + problem code, try to find any code in the statements
+        if problem["problem_site_type"] == "CSLOJ":
+            # SPECIAL CASE: CSLOJ
+            problem_info += f"\\textbf{{Tên bài 2}}: {str(problem['problem_title']).split("- ")[-1].capitalize()} "
+            problem_info += f"[{str(problem['problem_title']).split(" -")[0].split(". ")[-1].upper()}] \\\\\n"
+        
+        elif problem["problem_site_type"] == "Codeforces":
+            # SPECIAL CASE: Codeforces
+            problem_info += f"\\textbf{{Tên bài 2}}: {str(problem['problem_title']).split(". ")[-1].capitalize()} "
+            # If the problem has custom input files, use that as the problem code.
+            if str(problem['problem_info_entries'].get('input')).find("standard input") != -1: # Standard
+                problem_info += f"[{str(problem['problem_code']).upper()}] \\\\\n"
+            else: # Custom
+                problem_info += f"[{str(problem['problem_info_entries'].get('input')).split('.')[0].upper()}] \\\\\n"
+        else:
+            problem_info += f"\\textbf{{Tên bài 2}}: {str(problem['problem_title']).split(". ")[-1].capitalize()} "
+            problem_info += f"[{str(problem['problem_code']).upper()}] \\\\\n"
+        
+    except:
+        # Sumthin' went wrong, end the paragraph
+        problem_info += "\\\\n"
+        pass
+
+    try:
         for entry_name, entry_value in problem["problem_info_entries"].items():
             problem_info += f"\\textbf{{{entry_name}}}: {entry_value} \\\\\n"
         
@@ -760,7 +783,8 @@ def util_process_equation(func_str: str):
     func_str = func_str.replace("−", "-")
     func_str = func_str.replace(" ", "")
     func_str = func_str.replace("’", "'")
-    func_str = func_str.replace("⇔", "\\Leftrightarrow")
+    func_str = func_str.replace("⇔", "\\Leftrightarrow ")
+    func_str = func_str.replace("≠", "\\neq ")
 
     # Replace dollar sign 
     func_str = func_str.replace("!!Dollar!!", "\\$")
