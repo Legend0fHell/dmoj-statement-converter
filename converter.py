@@ -785,11 +785,21 @@ def util_process_equation(func_str: str):
     func_str = func_str.replace("’", "'")
     func_str = func_str.replace("⇔", "\\Leftrightarrow ")
     func_str = func_str.replace("≠", "\\neq ")
+    func_str = func_str.replace("δ", "\\delta ")
+    func_str = func_str.replace("Δ", "\\Delta ")
 
     # Replace dollar sign 
     func_str = func_str.replace("!!Dollar!!", "\\$")
 
     return func_str
+
+def util_process_post_convert(problem_content: str):
+    """Replace special characters and other modifications after the conversion."""
+    problem_content = problem_content.replace(" ", " ")
+    problem_content = problem_content.replace("—", "--")
+
+    # Normalize the Unicode characters
+    return unicodedata.normalize("NFC", problem_content)
 
 def convert_md_table_to_latex(md_table: str):
     """Convert a Markdown table to LaTeX format."""
@@ -964,7 +974,7 @@ def convert_to_latex_general(problem: dict):
     result = result.replace("<root>", LATEX_HEADER + problem_info, 1)
     result = result[::-1].replace("</root>"[::-1], "\\end{document}"[::-1], 1)[::-1]
 
-    return unicodedata.normalize("NFC", result)
+    return util_process_post_convert(result)
 
 def convert_to_latex_polygon(problem: dict):
     """Convert the problem content to LaTeX format for Polygon."""
@@ -982,7 +992,7 @@ def convert_to_latex_polygon(problem: dict):
     result = result.replace("<root>", LATEX_HEADER + problem_info, 1)
     result = result[::-1].replace("</root>"[::-1], "\\end{document}"[::-1], 1)[::-1]
 
-    return unicodedata.normalize("NFC", result)
+    return util_process_post_convert(result)
 
 def convert_to_latex_template(problem: dict):
     """Convert the problem content to LaTeX format for Templates."""
@@ -1005,9 +1015,9 @@ def convert_to_latex_template(problem: dict):
     result = result.replace("<root>", problem_info, 1)
     result = result[::-1].replace("</root>"[::-1], "\\end{statement}"[::-1], 1)[::-1]
 
-    return unicodedata.normalize("NFC", result)
+    return util_process_post_convert(result)
 
-def convert_to_md_dmoj(problem: dict):
+def convert_to_md_dmoj(problem: dict, math_delimiter = "~"):
     """Convert the problem content to Markdown format for DMOJ."""
     result = problem["problem_content_md"]
 
@@ -1021,7 +1031,7 @@ def convert_to_md_dmoj(problem: dict):
         result = result.replace(math_func_need_str, math_func_str, 1)
     
     # Change back the math delimiters
-    result = result.replace("$", "~")
+    result = result.replace("$", math_delimiter)
 
     # Change back the image links
     result = result.replace("!!FileImage!!", "![](")
@@ -1034,7 +1044,7 @@ def convert_to_md_dmoj(problem: dict):
     # Replace dollar sign
     result = result.replace("!!Dollar!!", "\\$")
 
-    return unicodedata.normalize("NFC", result)
+    return util_process_post_convert(result)
 
 def main_converter(url: str, override = None):
     """Main function."""
@@ -1122,8 +1132,13 @@ def main_converter(url: str, override = None):
     with open(f"output/{problem_folder_name}/{problem["problem_code"]}.tex", "w", encoding="utf8") as file:
         file.write(result)
 
-    print("Converting the problem content to Markdown for DMOJ...")
-    result = convert_to_md_dmoj(problem)
+    print("Converting the problem content to General Markdown...")
+    result = convert_to_md_dmoj(problem, "$")
+    with open(f"output/{problem_folder_name}/general.md", "w", encoding="utf8") as file:
+        file.write(result)
+    
+    print("Converting the problem content to DMOJ Markdown...")
+    result = convert_to_md_dmoj(problem, "~")
     with open(f"output/{problem_folder_name}/dmoj.md", "w", encoding="utf8") as file:
         file.write(result)
 
