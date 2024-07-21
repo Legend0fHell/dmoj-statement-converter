@@ -519,7 +519,11 @@ def get_files(problem_content: str, problem_site: str, problem_folder_name: str,
             response = requests.get(f"http://{problem_site}/images/problems{file}")
         
         if(response.status_code != 200):
-            raise Exception("Failed to get file from the site")
+            if (response.status_code > 400):
+                print(f"[{problem_site_type}] Failed to download file {file} due to the crawler got blocked. Please download it manually.")
+                continue
+            else:
+                raise Exception("[{problem_site_type}] Failed to get file {file} from the site!")
 
         # Save the file
         with open(f"output/{problem_folder_name}/{str(file).split("/")[-1]}", "wb") as f:
@@ -535,8 +539,11 @@ def get_files(problem_content: str, problem_site: str, problem_folder_name: str,
 
         response = requests.get(f"https://i.imgur.com{file}")
         if(response.status_code != 200):
-            print("[External-Imgur] Failed to get Imgur file, but you can try to download it manually.")
-            continue
+            if (response.status_code > 400):
+                print(f"[External-Imgur] Failed to download file {file} due to the crawler got blocked. Please download it manually.")
+                continue
+            else:
+                raise Exception("[External-Imgur] Failed to get file {file} from the site!")
 
         # Save the file
         with open(f"output/{problem_folder_name}{file}", "wb") as f:
