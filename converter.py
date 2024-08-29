@@ -1156,7 +1156,8 @@ def main_converter(url: str, override = None):
     
     return problem
 
-if __name__ == "__main__":
+
+def main_loop():
     url = input("Enter the problem URL: ")
     try:
         main_converter(url)
@@ -1190,4 +1191,7 @@ if __name__ == "__main__":
                 print("Failed to convert the problem.")
     
     print("Done!")
-    input("Press Enter to exit.")
+    input("Press Enter to continue, Ctrl-C to exit.")
+
+if __name__ == "__main__":
+    main_loop()
