@@ -186,6 +186,16 @@ def get_base_problem_dmoj(url: str, override = None):
     else:
         html_problem_content = html_problem_content.split('<hr>\n')[0].strip().strip("\n")
     
+    print("[DMOJ] ===== Extracted problem content:")
+    print(f"[DMOJ] Problem URL: {url}")
+    print(f"[DMOJ] Problem site type: DMOJ")
+    print(f"[DMOJ] Problem site: {problem_site}")
+    print(f"[DMOJ] Problem code: {problem_code}")
+    print(f"[DMOJ] Problem title: {problem_title}")
+    print(f"[DMOJ] Problem info entries: {problem_info_entries}")
+    print(f"[DMOJ] Problem allowed langs: {problem_allowed_langs}")
+    print(f"[DMOJ] Problem types: {problem_types}")
+
     return {
         "problem_site_type": "DMOJ",
         "problem_url": url,
@@ -271,6 +281,15 @@ def get_base_problem_lqdoj(url: str, override = None):
     # Nuke the mathjax script preview
     html_problem_content = re.sub(r'<span class="MathJax_Preview">(.+?)</span>', r'', html_problem_content)
 
+    print("[LQDOJ] ===== Extracted problem content:")
+    print(f"[LQDOJ] Problem URL: {url}")
+    print(f"[LQDOJ] Problem site type: LQDOJ")
+    print(f"[LQDOJ] Problem site: {problem_site}")
+    print(f"[LQDOJ] Problem code: {problem_code}")
+    print(f"[LQDOJ] Problem title: {problem_title}")
+    print(f"[LQDOJ] Problem info entries: {problem_info_entries}")
+    print(f"[LQDOJ] Problem types: {problem_types}")
+
     return {
         "problem_site_type": "LQDOJ",
         "problem_url": url,
@@ -347,6 +366,16 @@ def get_base_problem_csloj(url: str, override = None):
     # Nuke the mathjax script preview
     html_problem_content = re.sub(r'<span class="mjpage"><svg xmlns((.|\n)+?)<title id="MathJax(.+?)">(.+?)</title>((.|\n)+?)</svg></span>', r'\(\4\)', html_problem_content, count = 0, flags=re.MULTILINE | re.DOTALL)
 
+    # Print result
+    print("[CSLOJ] ===== Extracted problem content:")
+    print(f"[CSLOJ] Problem URL: {url}")
+    print(f"[CSLOJ] Problem site type: CSLOJ")
+    print(f"[CSLOJ] Problem site: {problem_site}")
+    print(f"[CSLOJ] Problem code: {problem_code}")
+    print(f"[CSLOJ] Problem title: {problem_title}")
+    print(f"[CSLOJ] Problem info entries: {problem_info_entries}")
+    print(f"[CSLOJ] Problem types: {problem_types}")
+
     return {
         "problem_site_type": "CSLOJ",
         "problem_url": url,
@@ -366,10 +395,22 @@ def get_base_problem_codeforces(url: str, override = None):
     if "/problemset/problem/" in url:
         url = re.sub(r'\/problemset\/problem\/(\d+)(\/[A-Z0-9]+)', r'/contest/\1/problem\2', url)
 
-    # Problem code is the part after the '/problem/' in the URL
+    problem_site_type = "Codeforces"
+
+    # URL type classification
+    if ".contest.codeforces.com" in url:
+        codeforces_url_type = "contest"
+        problem_site_type = "CodeforcesCD"
+    elif "/gym/" in url:
+        codeforces_url_type = "gym"
+    else:
+        codeforces_url_type = "contest"
     
-    # Contest ID is the part after the '/contest/' in the URL
-    problem_contest_id = url.split("/contest/")[1].split("/problem/")[0]
+    # Problem code is the part after the '/problem/' in the URL
+    if codeforces_url_type == "gym":
+        problem_contest_id = url.split("/gym/")[1].split("/problem/")[0]
+    elif codeforces_url_type == "contest":
+        problem_contest_id = url.split("/contest/")[1].split("/problem/")[0]
 
     # Problem order id is the part after the '/problem/' in the URL
     problem_order_id = url.split("/problem/")[1]
@@ -398,15 +439,20 @@ def get_base_problem_codeforces(url: str, override = None):
     for sidebox in html_sideboxes:
         try:
             sidebox = sidebox.split('</div>')[0]
-            if sidebox.find('<div class="caption titled">') != -1:
-                continue
-            if sidebox.find('/contest/') == -1:
-                continue
-            problem_contest_name = sidebox.split('</a></th>')[0].split("/contest/")[1].split("\">")[1].strip()
-            break
+            if codeforces_url_type == "gym":
+                if sidebox.find('/gym/') == -1:
+                    continue
+                problem_contest_name = sidebox.split('</a></th>')[0].split("/gym/")[1].split("\">")[1].strip()
+                break
+
+            elif codeforces_url_type == "contest":
+                if sidebox.find('/contest/') == -1:
+                    continue
+                problem_contest_name = sidebox.split('</a></th>')[0].split("/contest/")[1].split("\">")[1].strip()
+                break
         except:
             continue
-    
+
     # Extract the problem tags from the response
     problem_types = []
     try:
@@ -422,16 +468,22 @@ def get_base_problem_codeforces(url: str, override = None):
         pass
 
     # Cut the response to the part that starts the problem
-    html_response = html_response.split('<div class="ttypography"><div class="problem-statement">')[1]
+    html_response = html_response.split('<div class="problem-statement">')[1]
 
     # Extract the problem content from the response
     html_response = html_response.split('</div></div><div>', 1)
+    
+    # Alternative method to extract the problem content
+    if len(html_response) == 1:
+        html_response = html_response[0].split('<div class="output-file output-standard">')
+        html_response[0] += html_response[1].split('<div>',1)[0]
+        html_response[1] = html_response[1].split('<div>',1)[1]
 
     # First half is the problem details
     html_problem_details = html_response[0]
 
     # Extract the problem title, info entries, types, allowed langs, and content
-    problem_title = html_problem_details.split('<div class="header"><div class="title">')[1].split('</div>')[0].strip()
+    problem_title = html_problem_details.split('<div class="title">')[1].split('</div>')[0].strip()
     html_problem_info_entries = html_problem_details.split('<div class="property-title">')[1:]
 
     problem_info_entries = {}
@@ -467,8 +519,21 @@ def get_base_problem_codeforces(url: str, override = None):
         math_func_str = math_func_str.replace('<sub class="lower-index">', '_{').replace('</sub>', '}') # Replace lower index
         html_problem_content = html_problem_content.replace(math_func_need_str, math_func_str, 1)
     
+    # Print result
+    print("[Codeforces] ===== Extracted problem content:")
+    print(f"[Codeforces] Problem URL: {url}")
+    print(f"[Codeforces] Problem site type: {problem_site_type}")
+    print(f"[Codeforces] Problem site: {problem_site}")
+    print(f"[Codeforces] Problem code: {problem_code}")
+    print(f"[Codeforces] Problem contest ID: {problem_contest_id}")
+    print(f"[Codeforces] Problem contest name: {problem_contest_name}")
+    print(f"[Codeforces] Problem order ID: {problem_order_id}")
+    print(f"[Codeforces] Problem title: {problem_title}")
+    print(f"[Codeforces] Problem info entries: {problem_info_entries}")
+    print(f"[Codeforces] Problem types: {problem_types}")
+
     return {
-        "problem_site_type": "Codeforces",
+        "problem_site_type": problem_site_type,
         "problem_url": url,
         "problem_site": problem_site,
         "problem_code": problem_code,
@@ -491,6 +556,8 @@ def get_files(problem_content: str, problem_site: str, problem_folder_name: str,
     elif problem_site_type == "LQDOJ":
         files = re.findall(r'\/media/pagedown-uploads(.+?)"', problem_content)
     elif problem_site_type == "Codeforces":
+        files = re.findall(r'\/espresso.codeforces.com(.+?)"', problem_content)
+    elif problem_site_type == "CodeforcesCD":
         files = re.findall(r'\/espresso(.+?)"', problem_content)
     elif problem_site_type == "CSLOJ":
         files = re.findall(r'\/images/problems(.+?)"', problem_content)
@@ -508,22 +575,24 @@ def get_files(problem_content: str, problem_site: str, problem_folder_name: str,
         response = None
         # SPECIAL CASE: oj.lequydon.net
         if "oj.lequydon.net" in problem_site:
-            response = requests.get(f"https://{problem_site}/media/martor{file}")
+            response = requests.get(f"https://{problem_site}/media/martor/{file}")
         elif problem_site_type == "DMOJ":
-            response = requests.get(f"https://{problem_site}/martor{file}")
+            response = requests.get(f"https://{problem_site}/martor/{file}")
         elif problem_site_type == "LQDOJ":
-            response = requests.get(f"https://{problem_site}/media/pagedown-uploads{file}")
+            response = requests.get(f"https://{problem_site}/media/pagedown-uploads/{file}")
+        elif problem_site_type == "CodeforcesCD":
+            response = requests.get(f"https://{problem_site}/espresso/{file}")
         elif problem_site_type == "Codeforces":
-            response = requests.get(f"https://{problem_site}/espresso{file}")
+            response = requests.get(f"https://espresso.codeforces.com/{file}")
         elif problem_site_type == "CSLOJ":
-            response = requests.get(f"http://{problem_site}/images/problems{file}")
+            response = requests.get(f"http://{problem_site}/images/problems/{file}")
         
         if(response.status_code != 200):
             if (response.status_code > 400):
                 print(f"[{problem_site_type}] Failed to download file {file} due to the crawler got blocked. Please download it manually.")
                 continue
             else:
-                raise Exception("[{problem_site_type}] Failed to get file {file} from the site!")
+                raise Exception(f"[{problem_site_type}] Failed to get file {file} from the site!")
 
         # Save the file
         with open(f"output/{problem_folder_name}/{str(file).split("/")[-1]}", "wb") as f:
@@ -592,7 +661,7 @@ def get_testcases(problem_content: str, problem_site_type: str):
 
         # Remove all HTML tags
         problem_content = re.sub(r'<[^>]*>', '\n', problem_content)
-    elif problem_site_type == "Codeforces":
+    elif problem_site_type == "Codeforces" or problem_site_type == "CodeforcesCD":
         problem_content = problem_content.replace('</div><pre>', '||begin||').replace('</pre></div>', '||end||')
 
         # Remove the content after the last testcase
