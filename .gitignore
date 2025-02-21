@@ -9,3 +9,6 @@ data
 ignore
 output
 manual.txt
+
+temp*
+*.cph
