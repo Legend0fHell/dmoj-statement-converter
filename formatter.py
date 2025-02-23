@@ -60,11 +60,6 @@ class Formatter():
             # name of the current directory
             folder_name = os.path.basename(root)
 
-            # filter numbers in the folder name
-            folder_name_number = ''.join(filter(str.isdigit, folder_name))
-            if len(folder_name_number) > 0 and folder_name_number.isnumeric():
-                folder_name = folder_name_number
-
             valid_folder = 0
 
             for file in files:
@@ -75,27 +70,47 @@ class Formatter():
                 
                 if file_extension == self.extension_input_files or (file_extension == None and self.extension_input_files == ""):
                     self.input_files.append((path_file, folder_name))
-                    self.sum_size += os.path.getsize(path_file)
+                    if self.include_input_files:
+                        self.sum_size += os.path.getsize(path_file)
                     valid_folder = 1
 
-                elif file_extension == self.extension_output_files  or (file_extension == None and self.extension_output_files == ""):
+                elif file_extension == self.extension_output_files or (file_extension == None and self.extension_output_files == ""):
                     self.output_files.append((path_file, folder_name))
-                    self.sum_size += os.path.getsize(path_file)
+                    if self.include_output_files:
+                        self.sum_size += os.path.getsize(path_file)
                     valid_folder = 1
                 
             self.count_valid_folder += valid_folder
 
+        if self.count_valid_folder == 0:
+            self.logger.log_and_status("Cấu trúc thư mục không hợp lệ!", "err")
+            self.logger.log("Vui lòng kiểm tra lại cấu trúc thư mục!\n")
+            self.can_execute = False
+            return (False, 0)
+        
+        if len(self.input_files) == 0 and len(self.output_files) == 0:
+            self.logger.log_and_status("Không phát hiện file input và output!", "err")
+            self.logger.log("Vui lòng kiểm tra lại đuôi file hoặc cấu trúc thư mục!\n")
+            self.can_execute = False
+            return (False, 0)
+        
         # Find the name of the problem
         self.problem_input_name = os.path.commonprefix(filename_list).removeprefix("\\").removesuffix(".")
         if self.problem_output_name == "":
             self.problem_output_name = self.problem_input_name
+        
+        if self.problem_output_name == "":
+            self.logger.log_and_status("Không nhận dạng được tên bài!", "err")
+            self.logger.log("Vui lòng kiểm tra lại tên bài đầu ra hoặc cấu trúc thư mục!\n")
+            self.can_execute = False
+            return (False, 0)
         
         self.output_file_name = self.problem_output_name + "_" + datetime.now().strftime("%d-%m-%Y_%H-%M-%S") + ".zip"
 
         self.output_path = os.path.join(self.output_path_dir, self.output_file_name)
 
         sum_size_mb = round(self.sum_size / 1024 / 1024, 3)
-        
+
         if verbose:
             self.logger.log("===== TỔNG QUAN =====")
             self.logger.log(f"Folder test đầu vào: {self.input_path}")
@@ -103,30 +118,14 @@ class Formatter():
             self.logger.log(f"File ZIP đầu ra: {self.output_file_name}")
             self.logger.log(f"Số thư mục hợp lệ: {self.count_valid_folder} thư mục")
             self.logger.log(f"Số file đã phát hiện: {len(self.input_files)} file input, {len(self.output_files)} file output")
+            self.logger.log(f"{"Chứa" if self.include_input_files else "Không chứa"} file input; {"Chứa" if self.include_output_files else "Không chứa"} file output")
             self.logger.log(f"Tổng dung lượng: {sum_size_mb} MB")
-
-        if self.problem_output_name == "":
-            self.logger.log_and_status("Không nhận dạng được tên bài!", "err")
-            self.logger.log("Vui lòng kiểm tra lại tên bài đầu ra hoặc cấu trúc thư mục!\n")
-            self.can_execute = False
-            return (False, 0)
-
-        if self.count_valid_folder == 0:
-            self.logger.log_and_status("Cấu trúc thư mục không hợp lệ!", "err")
-            self.logger.log("Vui lòng kiểm tra lại cấu trúc thư mục!\n")
-            self.can_execute = False
-            return (False, 0)
-        if len(self.input_files) == 0 and len(self.output_files) == 0:
-            self.logger.log_and_status("Không phát hiện file input và output!", "err")
-            self.logger.log("Vui lòng kiểm tra lại đuôi file hoặc cấu trúc thư mục!\n")
-            self.can_execute = False
-            return (False, 0)
         
         if len(self.input_files) != len(self.output_files) or len(self.input_files) != self.count_valid_folder or len(self.output_files) != self.count_valid_folder:
             self.logger.log("Lưu ý: Số lượng file input, output và số lượng test đang không trùng khớp.")
 
         # recommend compression level
-        if sum_size_mb < 4:
+        if sum_size_mb < 3:
             level = 0
         elif sum_size_mb < 40:
             level = 5
@@ -168,10 +167,10 @@ class Formatter():
         comment = f"Accepted! From Loli with love <3||{VERSION}||{self.problem_output_name}||{self.count_valid_folder}||{self.extension_input_files}||{self.extension_output_files}||{len(self.input_files)}||{len(self.output_files)}"
         zip_object.comment = bytes(comment, 'utf-8')
         zip_object.close()
-        self.logger.log_and_status(f"Xử lý thành công {self.count_valid_folder} test vào file ZIP!", "ok")
+        self.logger.log_and_status(f"Xử lý thành công {self.count_valid_folder} test vào file '{self.output_file_name}'!", "ok")
         self.logger.log(f"File ZIP được lưu tại: {self.output_path}")
-        self.logger.log(f"Dung lượng: {round(os.path.getsize(self.output_path) / 1024 / 1024, 3)} MB")
-        self.logger.step(step = 0.001)
+        self.logger.log(f"Dung lượng đã nén: {round(os.path.getsize(self.output_path) / 1024 / 1024, 3)} MB")
+        self.logger.step(completed=True)
 
     def check_input_zip_file(self, verbose = True):
 
@@ -180,6 +179,9 @@ class Formatter():
             return False
 
         self.test_folders = {}
+        self.count_input_files = 0
+        self.count_output_files = 0
+        self.sum_size = 0
 
         zip_object = zipfile.ZipFile(self.input_path, 'r')
         
@@ -189,6 +191,11 @@ class Formatter():
 
         # get comment
         comment = zip_object.comment.decode('utf-8')
+
+        # calculate uncompressed size
+        file_size_dict = {}
+        for file in filename_list:
+            file_size_dict[file] = zip_object.getinfo(file).file_size
 
         zip_object.close()
 
@@ -236,11 +243,22 @@ class Formatter():
                 filename_split = filename.split(".")
                 if len(filename_split) == 2 and filename_split[1] == "a":
                     self.count_output_files += 1
-                    self.test_folders.update({filename_split[0]: {}})
-                    self.test_folders[filename_split[0]].update({"o": filename})
+
+                    if self.include_output_files:
+                        self.sum_size += file_size_dict[filename]
+
+                    if filename_split[0] not in self.test_folders:
+                        self.test_folders.update({filename_split[0]: {}})
+                    self.test_folders[filename_split[0]]["o"] = filename
                 elif len(filename_split) == 1:
                     self.count_input_files += 1
-                    self.test_folders[filename_split[0]].update({"i": filename})
+
+                    if self.include_input_files:
+                        self.sum_size += file_size_dict[filename]
+                    
+                    if filename_split[0] not in self.test_folders:
+                        self.test_folders.update({filename_split[0]: {}})
+                    self.test_folders[filename_split[0]]["i"] = filename
                 else:
                     invalid_format = True
                     break
@@ -269,14 +287,22 @@ class Formatter():
                 filename_split = filename.split(".")
                 if len(filename_split) == 3 and filename_split[0] == self.problem_input_name:
                     test_folder_set.add(filename_split[1])
-                    self.test_folders.update({filename_split[1]: {}})
+
+                    if filename_split[1] not in self.test_folders:
+                        self.test_folders.update({filename_split[1]: {}})
+                    
                     if filename_split[2] == self.extension_input_files or filename_split[2] == "inp":
                         self.count_input_files += 1
-                        self.test_folders[filename_split[1]].update({"i": filename})
+                        if self.include_input_files:
+                            self.sum_size += file_size_dict[filename]
+                        self.test_folders[filename_split[1]]["i"] = filename
+
                     elif filename_split[2] == self.extension_output_files or filename_split[2] == "out":
                         self.count_output_files += 1
-                        self.test_folders[filename_split[1]].update({"o": filename})
-
+                        if self.include_output_files:
+                            self.sum_size += file_size_dict[filename]
+                        self.test_folders[filename_split[1]]["o"] = filename
+        
         if self.count_input_files == 0 and self.count_output_files == 0:
             self.logger.log_and_status("Không phát hiện file input và output!", "err")
             self.logger.log("Vui lòng kiểm tra lại file ZIP!\n")
@@ -297,22 +323,75 @@ class Formatter():
             self.logger.log(f"Đuôi file input/output đầu ra: {self.extension_input_files}/{self.extension_output_files}")
             self.logger.log(f"Số test hợp lệ: {self.count_valid_folder} test")
             self.logger.log(f"Số file đã phát hiện: {self.count_input_files} file input, {self.count_output_files} file output")
-            self.logger.log(f"Dung lượng: {round(os.path.getsize(self.input_path) / 1024 / 1024, 3)} MB")
+            self.logger.log(f"Dung lượng: {round(self.sum_size / 1024 / 1024, 3)} MB giải nén; {round(os.path.getsize(self.input_path) / 1024 / 1024, 3)} MB file nén")
     
         if self.count_valid_folder > 0 and len(test_folder_set) != self.count_valid_folder:
             self.logger.log("Lưu ý: Số lượng thư mục test dò được và số lượng test đã lưu không trùng khớp.")
         self.count_valid_folder = len(test_folder_set)
 
         if self.count_input_files != self.count_output_files or self.count_input_files != self.count_valid_folder or self.count_output_files != self.count_valid_folder:
-                self.logger.log("Lưu ý: Số lượng file input, output và số lượng test đang không trùng khớp.")
+            self.logger.log("Lưu ý: Số lượng file input, output và số lượng test đang không trùng khớp.")
+        
+        if os.path.exists(os.path.join(self.output_path_dir, self.problem_output_name)):
+            self.logger.log("Lưu ý: Phát hiện thư mục trùng tên với tên bài đầu ra, file mới sẽ ghi đè file cũ!")
         
         self.logger.log_and_status("Không phát hiện lỗi. Nhấn 'Thực thi' để thực hiện chuyển đổi!\n", "ok")
         self.can_execute = True
+
+        
         self.logger.set_total_steps(self.sum_size)
         return True
     
-    def format_to_folder(self, level = 0):
-        pass
+    def format_to_folder(self):
+        if not self.can_execute:
+            return False
+        
+        self.logger.log("===== THỰC THI =====")
+        self.logger.log_and_status("Đang tạo thư mục test...")
+        
+        folder_parent_dir = os.path.join(self.output_path_dir, self.problem_output_name)
+
+        # check if the output folder exists
+        if os.path.exists(folder_parent_dir):
+            import shutil
+            shutil.rmtree(folder_parent_dir)
+            self.logger.log(f"Đã xóa thư mục cũ: '{self.problem_output_name}'")
+        
+        try:
+            os.makedirs(folder_parent_dir, exist_ok=True)
+        except FileExistsError:
+            pass
+
+        zip_object = zipfile.ZipFile(self.input_path, 'r')
+        
+        for cnt, (test_folder_name, files) in enumerate(self.test_folders.items()):
+            self.logger.status(f"[{cnt+1}/{self.count_valid_folder}] Đang xử lý test: {test_folder_name}")
+
+            if str(test_folder_name[0]).isdigit():
+                test_folder_name = "test" + str(test_folder_name).zfill(2)
+            
+            output_folder_dir = os.path.join(folder_parent_dir, test_folder_name)
+            try:
+                os.makedirs(output_folder_dir, exist_ok=True)
+            except FileExistsError:
+                pass
+
+            if self.include_input_files and "i" in files:
+                zip_object.extract(files["i"], output_folder_dir)
+                self.logger.step(step = zip_object.getinfo(files["i"]).file_size, force_update=False)
+                os.rename(os.path.join(output_folder_dir, files["i"]), os.path.join(output_folder_dir, self.problem_output_name + "." + self.extension_input_files))
+
+            if self.include_output_files and "o" in files:
+                zip_object.extract(files["o"], output_folder_dir)
+                self.logger.step(step = zip_object.getinfo(files["o"]).file_size, force_update=False)
+                os.rename(os.path.join(output_folder_dir, files["o"]), os.path.join(output_folder_dir, self.problem_output_name + "." + self.extension_output_files))        
+        
+        zip_object.close()
+
+        self.logger.log_and_status(f"Xử lý thành công {self.count_valid_folder} test vào thư mục '{self.problem_output_name}'!", "ok")
+        self.logger.log(f"Thư mục test được lưu tại: {folder_parent_dir}")
+        self.logger.log(f"Dung lượng giải nén: {round(self.sum_size / 1024 / 1024, 3)} MB")
+        self.logger.step(completed=True)
 
 if __name__ == "__main__":
     # Formatter("").check_input_directory()

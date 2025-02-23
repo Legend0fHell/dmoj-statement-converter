@@ -178,7 +178,7 @@ class App(Tk):
         self.but_cv_fz_savedir = ctk.CTkButton(self.convert_tabview_frame_fz, text="Duyệt...", height=27, width=20, fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray35"), border_width=2, command=self.event_btn_cv_fz_savedir_choose_dir)
         self.but_cv_fz_savedir.grid(row=5, column=6, padx=(5,0), sticky="ew", pady=(0,5))
 
-        self.but_cv_fz_convert = ctk.CTkButton(self.convert_tabview_frame_fz, text="Thực thi", height=30, width=75, fg_color="firebrick", hover_color="darkred", text_color = "white", text_color_disabled="gray", command=self.event_btn_cv_fz_convert)
+        self.but_cv_fz_convert = ctk.CTkButton(self.convert_tabview_frame_fz, text="Thực thi", height=30, width=75, fg_color="firebrick", hover_color="darkred", text_color = "white", text_color_disabled="gray", command=self.event_btn_cv_convert)
         self.but_cv_fz_convert.grid(row=5, column=7, padx=(5, 8), sticky="nse", pady=(0,5))
 
         self.convert_tabview_frame_fz.drop_target_register(DND_ALL)
@@ -244,11 +244,14 @@ class App(Tk):
     def event_dnd_convert_input(self, event):
         event.data = str(event.data).removeprefix('{').removesuffix('}')
         # check if the input is a directory or a file
-        if (self.current_submode == "ZIP → Thư mục" and (os.path.isdir(event.data) or not event.data.endswith(".zip"))):
-            return
-
-        if (os.path.isfile(event.data) and self.current_submode == "Thư mục → ZIP"):
-            return
+        if (self.current_submode == "ZIP → Thư mục" and os.path.isdir(event.data)):
+            self.switch_submode("Thư mục → ZIP")
+        
+        if (self.current_submode == "Thư mục → ZIP" and os.path.isfile(event.data)):
+            if event.data.endswith(".zip"):
+                self.switch_submode("ZIP → Thư mục")
+            else:
+                return
 
         self.entry_cv_fz_input.delete(0, "end")
         self.entry_cv_fz_input.insert(0, event.data)
@@ -272,7 +275,7 @@ class App(Tk):
     def event_btn_cv_fz_inp_choose_dir(self):
         if self.current_submode == "Thư mục → ZIP":
             self.path = filedialog.askdirectory()
-        else:
+        elif self.current_submode == "ZIP → Thư mục":
             self.path = filedialog.askopenfilename(filetypes=[("Tệp nén", "*.zip")])
         if str(self.path) == "":
             return
@@ -316,6 +319,23 @@ class App(Tk):
             return
         self.current_submode = new_submode
         print(f"Switched to {new_submode} submode")
+
+        # set menu option
+        self.menu_sb_submode.set(new_submode)
+
+        # clear input
+        self.entry_cv_fz_input.delete(0, "end")
+
+        # clear log
+        self.box_cv_fz_logbox.configure(state="normal")
+        self.box_cv_fz_logbox.delete(1.0, "end")
+        self.box_cv_fz_logbox.configure(state="disabled")
+
+        self.lbl_status.configure(text="Trạng thái: Sẵn sàng!", text_color=("gray25", "gray70"))
+        self.progbar_status.set(0)
+        self.lbl_percentage.configure(text="")
+        self.but_cv_fz_convert.configure(state="disabled")
+
         if self.current_mode == "convert":
             if new_submode == "Thư mục → ZIP":
                 self.lbl_cv_fz_input.configure(text="Thư mục:")
@@ -329,16 +349,6 @@ class App(Tk):
                 self.lbl_cv_fz_compress_type.configure(text="")
                 self.menu_cv_fz_compress_type.grid_forget()
 
-        # clear log
-        self.box_cv_fz_logbox.configure(state="normal")
-        self.box_cv_fz_logbox.delete(1.0, "end")
-        self.box_cv_fz_logbox.configure(state="disabled")
-
-        self.lbl_status.configure(text="Trạng thái: Sẵn sàng!", text_color=("gray25", "gray70"))
-        self.progbar_status.set(0)
-        self.lbl_percentage.configure(text="")
-        self.but_cv_fz_convert.configure(state="disabled")
-        
     def event_btn_cv_check(self, verbose=True, compress_level_rcm=True):
         if(self.entry_cv_fz_input.get() == ""):
             return
@@ -397,6 +407,14 @@ class App(Tk):
         else:
             self.but_cv_fz_convert.configure(state="normal")
     
+    def event_btn_cv_convert(self):
+        if(self.entry_cv_fz_input.get() == ""):
+            return
+        if self.current_submode == "Thư mục → ZIP":
+            self.event_btn_cv_fz_convert()
+        elif self.current_submode == "ZIP → Thư mục":
+            self.event_btn_cv_zf_convert()
+    
     def event_btn_cv_fz_convert(self):
         self.logger.log_and_status("Bắt đầu chuyển đổi...")
         level = 0
@@ -407,6 +425,12 @@ class App(Tk):
         
         # Run in a separate thread
         threading.Thread(target=self.formatter.format_to_zip, args=(level,)).start()
+    
+    def event_btn_cv_zf_convert(self):
+        self.logger.log_and_status("Bắt đầu chuyển đổi...")
+
+        # Run in a separate thread
+        threading.Thread(target=self.formatter.format_to_folder).start()
 
     def event_check_cv_fz_update_incl(self):
         if(self.entry_cv_fz_input.get() == ""):
@@ -530,7 +554,7 @@ class Logger():
     queued_step = 0
     queued_update_ui_progbar = False
 
-    def step(self, step = 1, force_update=True, resolve_queue=False):
+    def step(self, step = 1, force_update=True, resolve_queue=False, completed=False):
         new_step = step
         # if this call is for resolving the queue, update the status with the queued status
         if resolve_queue:
@@ -553,6 +577,9 @@ class Logger():
             return
 
         self.current_done_step += new_step
+        if completed:
+            self.current_done_step = self.total_steps
+
         perc = min(1,self.current_done_step / self.total_steps)
         self.progbar_status.set(perc)
         self.percentage.configure(text=f"{int(perc * 100)}%")
