@@ -8,7 +8,7 @@ from PIL import Image
 VERSION = "2.9.0"
 COPYRIGHT = "© Loli 2025"
 
-FEATURE_CRAWL_ENABLED = False
+FEATURE_CRAWL_ENABLED = True
 FEATURE_GEN_OUTPUT_ENABLED = False
 
 class Tk(ctk.CTk, TkinterDnD.DnDWrapper):
@@ -50,7 +50,7 @@ class App(Tk):
         self.lbl_sb_submode = ctk.CTkLabel(self.frame_sidebar, text="Chế độ:", anchor="center")
         self.lbl_sb_submode.grid(row=4, column=0, padx = 10, pady = (10,0), sticky="ew")
 
-        self.menu_sb_submode = ctk.CTkOptionMenu(self.frame_sidebar, values=["Thư mục → ZIP", "ZIP → Thư mục"], height=23, command=self.event_menu_sb_submode)
+        self.menu_sb_submode = ctk.CTkOptionMenu(self.frame_sidebar, height=23, command=self.event_menu_sb_submode)
         self.menu_sb_submode.grid(row=5, column=0, padx = 10, sticky="ew")
 
         self.lbl_sb_shortcutdir = ctk.CTkLabel(self.frame_sidebar, text="Lối tắt thư mục:", anchor="center")
@@ -96,12 +96,8 @@ class App(Tk):
         self.formatter = None
 
         self.convert_tabview_frame_fz = ctk.CTkFrame(self, border_width=1)
-        self.convert_tabview_frame_fz.grid(row=0, column=1, sticky="nsew", padx=(10, 10), pady=(5, 5))
-        self.convert_tabview_frame_fz.grid_columnconfigure((2,3,4,5,6), weight=1)
-        self.convert_tabview_frame_fz.grid_rowconfigure((0,1,2,3,4,5), pad=7)
-        self.convert_tabview_frame_fz.grid_rowconfigure(4, weight=1)
 
-        self.lbl_cv_fz_input = ctk.CTkLabel(self.convert_tabview_frame_fz, text="Test:", anchor="w")
+        self.lbl_cv_fz_input = ctk.CTkLabel(self.convert_tabview_frame_fz, text="Test:", anchor="center")
         self.lbl_cv_fz_input.grid(row=0, column=0, padx=8, pady=(5,0))
 
         self.entry_cv_fz_input = ctk.CTkEntry(self.convert_tabview_frame_fz, placeholder_text="Đường dẫn tới thư mục test... (có thể kéo thả)", height=27)
@@ -168,7 +164,7 @@ class App(Tk):
         self.box_cv_fz_logbox.grid(row=4, column=0, columnspan=8, padx=(8, 8), pady=(1, 5), sticky="nsew")
         self.box_cv_fz_logbox.configure(state="disabled")
 
-        self.lbl_cv_fz_savedir = ctk.CTkLabel(self.convert_tabview_frame_fz, text="Lưu tại:", anchor="w")
+        self.lbl_cv_fz_savedir = ctk.CTkLabel(self.convert_tabview_frame_fz, text="Lưu tại:", anchor="center", width=80)
         self.lbl_cv_fz_savedir.grid(row=5, column=0, padx=(5, 0), pady=(0,5))
 
         self.entry_cv_fz_savedir = ctk.CTkEntry(self.convert_tabview_frame_fz, placeholder_text="Đường dẫn tới thư mục... (có thể kéo thả)", height=27)
@@ -190,11 +186,35 @@ class App(Tk):
         self.entry_cv_fz_savedir.drop_target_register(DND_ALL)
         self.entry_cv_fz_savedir.dnd_bind("<<Drop>>", self.event_dnd_convert_savedir)
 
+    def init_frame_crawl(self):
+        self.crawl_tabview_frame = ctk.CTkFrame(self, border_width=1)
+
+        self.lbl_cr_input = ctk.CTkLabel(self.crawl_tabview_frame, text="URL:", anchor="center")
+        self.lbl_cr_input.grid(row=0, column=0, padx=8, pady=(5,5))
+
+        self.entry_cr_input = ctk.CTkEntry(self.crawl_tabview_frame, placeholder_text="Link URL tới trang...", height=27)
+        self.entry_cr_input.grid(row=0, column=1, columnspan=7, sticky="ew", pady=(5,5), padx=(0,8))
+
+        self.box_cr_logbox = ctk.CTkTextbox(self.crawl_tabview_frame, activate_scrollbars=False, border_width=1, font=ctk.CTkFont(size = 12), wrap="word")
+        self.box_cr_logbox.grid(row=4, column=0, columnspan=8, padx=(8, 8), pady=(1, 5), sticky="nsew")
+        self.box_cr_logbox.configure(state="disabled")
+
+        self.lbl_cr_savedir = ctk.CTkLabel(self.crawl_tabview_frame, text="Lưu tại:", anchor="center", width=80)
+        self.lbl_cr_savedir.grid(row=5, column=0, padx=(5, 0), pady=(0,5))
+
+        self.entry_cr_savedir = ctk.CTkEntry(self.crawl_tabview_frame, placeholder_text="Đường dẫn tới thư mục... (có thể kéo thả)", height=27)
+        self.entry_cr_savedir.grid(row=5, column=1, columnspan=5, sticky="ew", pady=(0,5))
+        self.entry_cr_savedir.bind("<FocusOut>", self.event_entry_cv_fz_savedir)
+
+        self.but_cr_savedir = ctk.CTkButton(self.crawl_tabview_frame, text="Duyệt...", height=27, width=20, fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray35"), border_width=2, command=self.event_btn_cv_fz_savedir_choose_dir)
+        self.but_cr_savedir.grid(row=5, column=6, padx=(5,0), sticky="ew", pady=(0,5))
+
+        self.but_cr_crawl = ctk.CTkButton(self.crawl_tabview_frame, text="Thực thi", height=30, width=75, fg_color="firebrick", hover_color="darkred", text_color = "white", text_color_disabled="gray", command=self.event_btn_cv_convert)
+        self.but_cr_crawl.grid(row=5, column=7, padx=(5, 8), sticky="nse", pady=(0,5))
+
     def init_default_state(self):
         self.menu_sb_appearance_mode.set("Tự động")
         self.switch_operation_mode("convert")
-        self.menu_sb_submode.set("Thư mục → ZIP")
-        self.switch_submode("Thư mục → ZIP")
 
         if not FEATURE_CRAWL_ENABLED:
             self.but_sb_mode_crawl.configure(state="disabled")
@@ -206,24 +226,28 @@ class App(Tk):
 
         self.progbar_status.set(0)
         self.lbl_percentage.configure(text="")
+
         self.entry_cv_fz_input_ext.insert(0, "inp")
         self.entry_cv_fz_output_ext.insert(0, "out")
         self.menu_cv_fz_compress_type.set("Deflate 5 (mặc định)")
         self.check_cv_fz_inclinput.select()
         self.check_cv_fz_incloutput.select()
         self.but_cv_fz_convert.configure(state="disabled")
+
+        self.but_cr_crawl.configure(state="disabled")
+        
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
-        
-
-        # default dir to save is one directory above the current working directory, in a folder named "output"
-        # get the full path of that directory, and put it in the entry
+        # default dir to save is current working directory, in a folder named "output"
         self.entry_cv_fz_savedir.insert(0, os.path.join(os.getcwd(), "output", "formatter"))
+        self.entry_cr_savedir.insert(0, os.path.join(os.getcwd(), "output", "crawler"))
 
     def __init__(self):
         self.current_mode = "init"
         self.current_submode = "init"
+        self.prev_submode_convert = "init"
+        self.prev_submode_crawl = "init"
 
         super().__init__()
         self.geometry("810x476")
@@ -237,9 +261,8 @@ class App(Tk):
         self.init_frame_sidebar()
         self.init_frame_statusbar()
         self.init_frame_convert()
+        self.init_frame_crawl()
         self.init_default_state()
-
-        self.logger = Logger(self.box_cv_fz_logbox, self.progbar_status, self.lbl_status, self.lbl_percentage)
 
     def event_dnd_convert_input(self, event):
         event.data = str(event.data).removeprefix('{').removesuffix('}')
@@ -308,13 +331,42 @@ class App(Tk):
     def switch_operation_mode(self, new_mode: str):
         if new_mode == self.current_mode:
             return
+        
+        if self.current_mode == "convert":
+            self.prev_submode_convert = self.current_submode
+        elif self.current_mode == "crawl":
+            self.prev_submode_crawl = self.current_submode
+        
         self.current_mode = new_mode
         print(f"Switched to {new_mode} mode")
+
+        MENU_SB_SUBMODE_CONVERT_LIST = ["Thư mục → ZIP", "ZIP → Thư mục"]
+        MENU_SB_SUBMODE_CRAWL_LIST = ["Tự nhận diện", "DMOJ", "LQDOJ", "Codeforces", "CSLOJ"]
+        
+        if new_mode == "crawl":
+            self.convert_tabview_frame_fz.grid_forget()
+            self.crawl_tabview_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 10), pady=(5, 5))
+            self.crawl_tabview_frame.grid_columnconfigure((2,3,4,5), weight=1)
+            self.crawl_tabview_frame.grid_rowconfigure((0,1,2,3,4,5), pad=7)
+            self.crawl_tabview_frame.grid_rowconfigure(4, weight=1)
+            self.logger = Logger(self.box_cr_logbox, self.progbar_status, self.lbl_status, self.lbl_percentage)
+            self.menu_sb_submode.configure(values = MENU_SB_SUBMODE_CRAWL_LIST)
+            self.switch_submode("Tự nhận diện" if self.prev_submode_crawl == "init" else self.prev_submode_crawl, notify=False)
+        
+        elif new_mode == "convert":
+            self.crawl_tabview_frame.grid_forget()
+            self.convert_tabview_frame_fz.grid(row=0, column=1, sticky="nsew", padx=(10, 10), pady=(5, 5))
+            self.convert_tabview_frame_fz.grid_columnconfigure((2,3,4,5,6), weight=1)
+            self.convert_tabview_frame_fz.grid_rowconfigure((0,1,2,3,4,5), pad=7)
+            self.convert_tabview_frame_fz.grid_rowconfigure(4, weight=1)
+            self.logger = Logger(self.box_cv_fz_logbox, self.progbar_status, self.lbl_status, self.lbl_percentage)
+            self.menu_sb_submode.configure(values = MENU_SB_SUBMODE_CONVERT_LIST)
+            self.switch_submode("Thư mục → ZIP" if self.prev_submode_convert == "init" else self.prev_submode_convert, notify=False)
 
         self.but_sb_mode_convert.configure(fg_color=("gray75", "gray23") if self.current_mode == "convert" else "transparent")
         self.but_sb_mode_crawl.configure(fg_color=("gray75", "gray23") if self.current_mode == "crawl" else "transparent")
 
-    def switch_submode(self, new_submode: str):
+    def switch_submode(self, new_submode: str, notify=True):
         if new_submode == self.current_submode:
             return
         self.current_submode = new_submode
@@ -323,20 +375,17 @@ class App(Tk):
         # set menu option
         self.menu_sb_submode.set(new_submode)
 
-        # clear input
-        self.entry_cv_fz_input.delete(0, "end")
-
-        # clear log
-        self.box_cv_fz_logbox.configure(state="normal")
-        self.box_cv_fz_logbox.delete(1.0, "end")
-        self.box_cv_fz_logbox.configure(state="disabled")
+        if notify:
+            self.logger.log(f"\n===== Chuyển sang chế độ: {new_submode} =====\n")
 
         self.lbl_status.configure(text="Trạng thái: Sẵn sàng!", text_color=("gray25", "gray70"))
         self.progbar_status.set(0)
         self.lbl_percentage.configure(text="")
-        self.but_cv_fz_convert.configure(state="disabled")
 
         if self.current_mode == "convert":
+            # clear input
+            self.entry_cv_fz_input.delete(0, "end")
+            self.but_cv_fz_convert.configure(state="disabled")
             if new_submode == "Thư mục → ZIP":
                 self.lbl_cv_fz_input.configure(text="Thư mục:")
                 self.entry_cv_fz_input.configure(placeholder_text="Đường dẫn tới thư mục test... (có thể kéo thả)")
@@ -504,6 +553,11 @@ class Logger():
 
         # scroll to the bottom
         self.textbox.see("end")
+
+    def clear_log(self):
+        self.textbox.configure(state="normal")
+        self.textbox.delete(1.0, "end")
+        self.textbox.configure(state="disabled")
 
     queued_status_text = ""
     queued_status_info = ""

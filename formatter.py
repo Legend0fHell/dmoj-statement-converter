@@ -95,7 +95,7 @@ class Formatter():
             return (False, 0)
         
         # Find the name of the problem
-        self.problem_input_name = os.path.commonprefix(filename_list).removeprefix("\\").removesuffix(".")
+        self.problem_input_name = str(os.path.commonprefix(filename_list).strip("\\").strip("/")).split(".")[0]
         if self.problem_output_name == "":
             self.problem_output_name = self.problem_input_name
         
@@ -323,6 +323,7 @@ class Formatter():
             self.logger.log(f"Đuôi file input/output đầu ra: {self.extension_input_files}/{self.extension_output_files}")
             self.logger.log(f"Số test hợp lệ: {self.count_valid_folder} test")
             self.logger.log(f"Số file đã phát hiện: {self.count_input_files} file input, {self.count_output_files} file output")
+            self.logger.log(f"{"Chứa" if self.include_input_files else "Không chứa"} file input; {"Chứa" if self.include_output_files else "Không chứa"} file output")
             self.logger.log(f"Dung lượng: {round(self.sum_size / 1024 / 1024, 3)} MB giải nén; {round(os.path.getsize(self.input_path) / 1024 / 1024, 3)} MB file nén")
     
         if self.count_valid_folder > 0 and len(test_folder_set) != self.count_valid_folder:
