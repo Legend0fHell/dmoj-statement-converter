@@ -192,7 +192,7 @@ class App(Tk):
         self.lbl_cr_input = ctk.CTkLabel(self.crawl_tabview_frame, text="URL:", anchor="center")
         self.lbl_cr_input.grid(row=0, column=0, padx=8, pady=(5,5))
 
-        self.entry_cr_input = ctk.CTkEntry(self.crawl_tabview_frame, placeholder_text="Link URL tới trang...", height=27)
+        self.entry_cr_input = ctk.CTkEntry(self.crawl_tabview_frame, placeholder_text="Link URL tới trang (http://...; https://...)", height=27)
         self.entry_cr_input.grid(row=0, column=1, columnspan=7, sticky="ew", pady=(5,5), padx=(0,8))
 
         self.box_cr_logbox = ctk.CTkTextbox(self.crawl_tabview_frame, activate_scrollbars=False, border_width=1, font=ctk.CTkFont(size = 12), wrap="word")
@@ -223,13 +223,15 @@ class App(Tk):
 
         self.entry_cr_savedir = ctk.CTkEntry(self.crawl_tabview_frame, placeholder_text="Đường dẫn tới thư mục... (có thể kéo thả)", height=27)
         self.entry_cr_savedir.grid(row=5, column=1, columnspan=5, sticky="ew", pady=(0,5))
-        self.entry_cr_savedir.bind("<FocusOut>", self.event_entry_cv_fz_savedir)
 
-        self.but_cr_savedir = ctk.CTkButton(self.crawl_tabview_frame, text="Duyệt...", height=27, width=20, fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray35"), border_width=2, command=self.event_btn_cv_fz_savedir_choose_dir)
+        self.but_cr_savedir = ctk.CTkButton(self.crawl_tabview_frame, text="Duyệt...", height=27, width=20, fg_color="transparent", text_color=("gray10", "gray90"), hover_color=("gray70", "gray35"), border_width=2, command=self.event_btn_cr_savedir_choose_dir)
         self.but_cr_savedir.grid(row=5, column=6, padx=(5,0), sticky="ew", pady=(0,5))
 
-        self.but_cr_crawl = ctk.CTkButton(self.crawl_tabview_frame, text="Thực thi", height=30, width=75, fg_color="firebrick", hover_color="darkred", text_color = "white", text_color_disabled="gray", command=self.event_btn_cv_convert)
+        self.but_cr_crawl = ctk.CTkButton(self.crawl_tabview_frame, text="Thực thi", height=30, width=75, fg_color="firebrick", hover_color="darkred", text_color = "white", text_color_disabled="gray", command=self.event_btn_cr_crawl)
         self.but_cr_crawl.grid(row=5, column=7, padx=(5, 8), sticky="nse", pady=(0,5))
+
+        self.entry_cr_savedir.drop_target_register(DND_ALL)
+        self.entry_cr_savedir.dnd_bind("<<Drop>>", self.event_dnd_crawl_savedir)
 
     def init_default_state(self):
         self.menu_sb_appearance_mode.set("Tự động")
@@ -252,8 +254,6 @@ class App(Tk):
         self.check_cv_fz_inclinput.select()
         self.check_cv_fz_incloutput.select()
         self.but_cv_fz_convert.configure(state="disabled")
-
-        self.but_cr_crawl.configure(state="disabled")
         
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
@@ -556,6 +556,31 @@ class App(Tk):
     def event_menu_sb_submode(self, new_submode: str):
         self.switch_submode(new_submode)
 
+    def event_btn_cr_savedir_choose_dir(self):
+        self.path = filedialog.askdirectory()
+        if str(self.path) == "":
+            return
+        self.entry_cr_savedir.delete(0, "end")
+        self.entry_cr_savedir.insert(0, self.path)
+    
+    def event_dnd_crawl_savedir(self, event):
+        event.data = str(event.data).removeprefix('{').removesuffix('}')
+        if os.path.isfile(event.data):
+            return
+        self.entry_cr_savedir.delete(0, "end")
+        self.entry_cr_savedir.insert(0, event.data)
+    
+    def event_btn_cr_crawl(self):
+        if(self.entry_cr_input.get() == ""):
+            return
+        self.logger.log_and_status("Bắt đầu cào bài...")
+        from converter import Crawler
+        problem_site_type = None if self.current_submode == "Tự nhận diện" else self.current_submode
+        self.crawler = Crawler(self.entry_cr_input.get(), self.logger, self.entry_cr_savedir.get(), problem_site_type)
+        
+        # Run in a separate thread
+        threading.Thread(target=self.crawler.crawl).start()
+
     def event_btn_cr_quick_copy_statement_md(self):
         pass
 
@@ -569,7 +594,7 @@ class App(Tk):
         pass
 
 class Logger():
-    def __init__(self, textbox: ctk.CTkTextbox, progbar_status: ctk.CTkProgressBar, statusbar: ctk.CTkLabel, percentage: ctk.CTkLabel):
+    def __init__(self, textbox: ctk.CTkTextbox = None, progbar_status: ctk.CTkProgressBar = None, statusbar: ctk.CTkLabel = None, percentage: ctk.CTkLabel = None):
         self.textbox = textbox
         self.progbar_status = progbar_status
         self.statusbar = statusbar
@@ -578,6 +603,10 @@ class Logger():
         self.total_steps = 1
 
     def log(self, log_text: str):
+        if self.textbox == None:
+            print(f"LOG: {log_text}")
+            return
+
         self.textbox.configure(state="normal")
         self.textbox.insert("end", log_text + '\n')
         self.textbox.configure(state="disabled")
@@ -586,6 +615,10 @@ class Logger():
         self.textbox.see("end")
 
     def clear_log(self):
+        if self.textbox == None:
+            print("LOG: Cleared log")
+            return
+
         self.textbox.configure(state="normal")
         self.textbox.delete(1.0, "end")
         self.textbox.configure(state="disabled")
@@ -602,6 +635,10 @@ class Logger():
                 return
             status_text = self.queued_status_text
             type = self.queued_status_info
+
+        if self.statusbar == None:
+            print(f"STATUS {type}: {status_text}")
+            return
         
         # if the status is not important, and there is a queued status, update the status with the queued status
         if force_update == False:
@@ -609,15 +646,15 @@ class Logger():
             self.queued_status_info = type
             if self.queued_update_ui == False: # if there has not been a queued update, queue one
                 self.queued_update_ui = True
-                self.statusbar.after(200, lambda: self.status("", "", force_update=True, resolve_queue=True))
+                if self.statusbar != None:
+                    self.statusbar.after(200, lambda: self.status("", "", force_update=True, resolve_queue=True))
             else:
                 return
         else: # this is an important status, clear the queue
             self.queued_status_text = ""
             self.queued_status_info = ""
             self.queued_update_ui = False
-        
-        # self.update_count += 1
+
         self.statusbar.configure(text=f"Trạng thái: {status_text}")
         if type == "info":
             self.statusbar.configure(text_color=("gray25", "gray70"))
@@ -626,15 +663,20 @@ class Logger():
         elif type == "err":
             self.statusbar.configure(text_color=("darkred", "red"))
     
-    def log_and_status(self, log_text: str, type="info"):
+    def log_and_status(self, log_text: str, type="info", force_update=True):
         self.log(log_text)
-        self.status(log_text, type)
+        self.status(log_text, type, force_update)
     
     def set_total_steps(self, total_steps: int):
         self.total_steps = total_steps
+        self.current_done_step = 0
+
+        if self.progbar_status == None:
+            print(f"PROGBAR: Total steps set to {total_steps}, reset current step to 0")
+            return
+        
         self.progbar_status.set(0)
         self.percentage.configure(text="")
-        self.current_done_step = 0
 
     queued_step = 0
     queued_update_ui_progbar = False
@@ -649,10 +691,12 @@ class Logger():
         if force_update == False:
             if self.queued_update_ui_progbar == False: # if there has not been a queued update, queue one
                 self.queued_update_ui_progbar = True
-                self.progbar_status.after(200, lambda: self.step(force_update=True, resolve_queue=True))
+                if self.progbar_status != None:
+                    self.progbar_status.after(200, lambda: self.step(force_update=True, resolve_queue=True))
             else:
                 self.queued_step += step
-                return
+                if self.progbar_status != None:
+                    return
         else: # this is an important status, clear the queue
             new_step += self.queued_step
             self.queued_step = 0
@@ -666,6 +710,11 @@ class Logger():
             self.current_done_step = self.total_steps
 
         perc = min(1,self.current_done_step / self.total_steps)
+
+        if self.progbar_status == None:
+            print(f"PROGBAR: Added {new_step}, total {self.current_done_step}/{self.total_steps}, percentage {perc}")
+            return
+
         self.progbar_status.set(perc)
         self.percentage.configure(text=f"{int(perc * 100)}%")
 

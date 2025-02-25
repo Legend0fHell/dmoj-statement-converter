@@ -6,7 +6,7 @@ from gui import Logger
 VERSION = "2.9.0"
 
 class Formatter():
-    def __init__(self, input_path, logger: Logger = None,
+    def __init__(self, input_path, logger: Logger = Logger(),
                  output_path_dir = os.path.join(os.getcwd(), "output", "formatter"),
                  gen_output_file_path = None, 
                  include_input_files = True, 
