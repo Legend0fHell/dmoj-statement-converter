@@ -164,7 +164,7 @@ class App(Tk):
         self.box_cv_fz_logbox.grid(row=4, column=0, columnspan=8, padx=(8, 8), pady=(1, 5), sticky="nsew")
         self.box_cv_fz_logbox.configure(state="disabled")
 
-        self.lbl_cv_fz_savedir = ctk.CTkLabel(self.convert_tabview_frame_fz, text="Lưu tại:", anchor="center", width=80)
+        self.lbl_cv_fz_savedir = ctk.CTkLabel(self.convert_tabview_frame_fz, text="Lưu tại:", anchor="center", width=90)
         self.lbl_cv_fz_savedir.grid(row=5, column=0, padx=(5, 0), pady=(0,5))
 
         self.entry_cv_fz_savedir = ctk.CTkEntry(self.convert_tabview_frame_fz, placeholder_text="Đường dẫn tới thư mục... (có thể kéo thả)", height=27)
@@ -196,10 +196,29 @@ class App(Tk):
         self.entry_cr_input.grid(row=0, column=1, columnspan=7, sticky="ew", pady=(5,5), padx=(0,8))
 
         self.box_cr_logbox = ctk.CTkTextbox(self.crawl_tabview_frame, activate_scrollbars=False, border_width=1, font=ctk.CTkFont(size = 12), wrap="word")
-        self.box_cr_logbox.grid(row=4, column=0, columnspan=8, padx=(8, 8), pady=(1, 5), sticky="nsew")
+        self.box_cr_logbox.grid(row=3, column=0, columnspan=8, padx=(8, 8), pady=(1, 5), sticky="nsew")
         self.box_cr_logbox.configure(state="disabled")
 
-        self.lbl_cr_savedir = ctk.CTkLabel(self.crawl_tabview_frame, text="Lưu tại:", anchor="center", width=80)
+        self.subframe_cr_quick_copy = ctk.CTkFrame(self.crawl_tabview_frame, corner_radius=0, fg_color="transparent")
+        self.subframe_cr_quick_copy.grid(row=4, column=1, columnspan=7, padx=10)
+        self.subframe_cr_quick_copy.grid_columnconfigure((1,2,3,4), weight=1)
+
+        self.lbl_cr_quick_copy = ctk.CTkLabel(self.crawl_tabview_frame, text="Copy nhanh:", anchor="e")
+        self.lbl_cr_quick_copy.grid(row=4, column=0, padx=8)
+
+        self.but_cr_quick_copy_statement_md = ctk.CTkButton(self.subframe_cr_quick_copy, text="Đề bài (DMOJ)", height=23, width=100, command=self.event_btn_cr_quick_copy_statement_md)
+        self.but_cr_quick_copy_statement_md.grid(row=0, column=1, padx=(0, 10))
+
+        self.but_cr_quick_copy_example_md = ctk.CTkButton(self.subframe_cr_quick_copy, text="Ví dụ (DMOJ)", height=23, width=100, command=self.event_btn_cr_quick_copy_example_md)
+        self.but_cr_quick_copy_example_md.grid(row=0, column=2, padx=(0, 10))
+
+        self.but_cr_quick_copy_statement_latex = ctk.CTkButton(self.subframe_cr_quick_copy, text="Đề bài (CF)", height=23, width=100, command=self.event_btn_cr_quick_copy_statement_latex)
+        self.but_cr_quick_copy_statement_latex.grid(row=0, column=3, padx=(0, 10))
+
+        self.but_cr_quick_copy_example_text = ctk.CTkButton(self.subframe_cr_quick_copy, text="Ví dụ (Chung)", height=23, width=100, command=self.event_btn_cr_quick_copy_example_text)
+        self.but_cr_quick_copy_example_text.grid(row=0, column=4, padx=(0, 10))
+
+        self.lbl_cr_savedir = ctk.CTkLabel(self.crawl_tabview_frame, text="Lưu tại:", anchor="center", width=90)
         self.lbl_cr_savedir.grid(row=5, column=0, padx=(5, 0), pady=(0,5))
 
         self.entry_cr_savedir = ctk.CTkEntry(self.crawl_tabview_frame, placeholder_text="Đường dẫn tới thư mục... (có thể kéo thả)", height=27)
@@ -348,7 +367,7 @@ class App(Tk):
             self.crawl_tabview_frame.grid(row=0, column=1, sticky="nsew", padx=(10, 10), pady=(5, 5))
             self.crawl_tabview_frame.grid_columnconfigure((2,3,4,5), weight=1)
             self.crawl_tabview_frame.grid_rowconfigure((0,1,2,3,4,5), pad=7)
-            self.crawl_tabview_frame.grid_rowconfigure(4, weight=1)
+            self.crawl_tabview_frame.grid_rowconfigure(3, weight=1)
             self.logger = Logger(self.box_cr_logbox, self.progbar_status, self.lbl_status, self.lbl_percentage)
             self.menu_sb_submode.configure(values = MENU_SB_SUBMODE_CRAWL_LIST)
             self.switch_submode("Tự nhận diện" if self.prev_submode_crawl == "init" else self.prev_submode_crawl, notify=False)
@@ -536,6 +555,18 @@ class App(Tk):
     
     def event_menu_sb_submode(self, new_submode: str):
         self.switch_submode(new_submode)
+
+    def event_btn_cr_quick_copy_statement_md(self):
+        pass
+
+    def event_btn_cr_quick_copy_statement_latex(self):
+        pass
+
+    def event_btn_cr_quick_copy_example_md(self):
+        pass
+
+    def event_btn_cr_quick_copy_example_text(self):
+        pass
 
 class Logger():
     def __init__(self, textbox: ctk.CTkTextbox, progbar_status: ctk.CTkProgressBar, statusbar: ctk.CTkLabel, percentage: ctk.CTkLabel):

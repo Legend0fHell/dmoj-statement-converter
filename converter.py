@@ -61,32 +61,15 @@ tleoj.edu.vn
 nbk.homes
 """
 
-INSTRUCT_USING_MANUAL = """
-Can not convert the problem. You can try using Manual method instead:
-
-1. Go to that problem page.
-2. Right click and choose "Inspect".
-3. Switch to the "Network" tab.
-4. Find the problem in the "Network" tab (if not found, try refreshing the page using F5).
-   * It should be a request with the method "GET", has the type "document" and the name is the problem code.
-5. Right click on the request and choose "Copy" > "Copy response". (not "Copy response headers")
-6. Paste the copied content in the Notepad window (using Right click > Paste or Ctrl + V).
-7. Save the file and close the Notepad window.
-8. When you are ready, press Enter to continue.
-"""
-
 INSTRUCT_USING_MANUAL_VI = """
 Không thể chuyển đổi bài toán. Tuy nhiên có thể thử sử dụng phương pháp Thủ công:
 
 1. Truy cập vào trang web cần chuyển đổi.
-2. Chuột phải và chọn "Inspect".
-3. Chuyển sang tab "Network".
-4. Tìm dòng có mã bài toán đó trong tab "Network" (nếu không thấy, thử làm mới trang bằng F5).
-   * Đó sẽ là một request có method "GET", có type "document" và tên là mã bài toán.
-5. Chuột phải vào request đó và chọn "Copy" > "Copy response". (không phải "Copy response headers")
-6. Dán nội dung đã copy vào cửa sổ Notepad (chuột phải > Dán hoặc Ctrl + V).
-7. Lưu file và đóng cửa sổ Notepad.
-8. Khi bạn đã sẵn sàng, nhấn Enter để tiếp tục.
+2. Nhấn Ctrl + U.
+3. Nhấn Ctrl + A (chọn tất cả), và nhấn Ctrl + C (sao chép).
+4. Dán nội dung đã copy vào cửa sổ Notepad (chuột phải > Dán hoặc Ctrl + V).
+5. Lưu file và đóng cửa sổ Notepad.
+6. Khi bạn đã sẵn sàng, nhấn Enter để tiếp tục.
 """
 
 def os_create_folder(folder_name: str):
