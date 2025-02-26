@@ -93,6 +93,16 @@ class Crawler():
         self.html_response = str()
         self.problem = dict()
         self.problem_folder_name = str()
+        self.result_latex_general = ""
+        self.result_latex_polygon = ""
+        self.result_latex_template = ""
+        self.result_md_dmoj = ""
+        self.result_md_general = ""
+        self.result_quick_copy_md_dmoj = ""
+        self.result_quick_copy_latex_polygon = ""
+        self.result_quick_copy_example_text = ""
+        self.result_quick_copy_example_md = ""
+
 
     def os_create_folder(self, folder_dir: str):
         """Create a folder with the given name if it does not exist."""
@@ -791,6 +801,36 @@ class Crawler():
 
         return testcase_list
 
+    def generate_testcase_text(self, testcases: list, input_name: str, output_name: str):
+        """Generate a list of testcases for the general content."""
+        testcase_text = "\n\n"
+
+        testcase_text += f"Input: {input_name} \n"
+        testcase_text += f"Output: {output_name} \n"
+
+        for i, testcase in enumerate(testcases):
+            testcase_text += f"\nTestcase {i + 1}: \n"
+            testcase_text += f"\n{testcase[0]}\n"
+            testcase_text += f"\n====="
+            testcase_text += f"\n{testcase[1]}\n"
+
+        return testcase_text
+    
+    def generate_testcase_md(self, testcases: list, input_name: str, output_name: str):
+        """Generate a list of testcases for the markdown content."""
+        testcase_text = "\n\n### Ví dụ\n\n"
+        
+        testcase_text += f"- Input: {input_name}\n"
+        testcase_text += f"- Output: {output_name}\n\n"
+
+        for i, testcase in enumerate(testcases):
+            testcase_text += f"#### Sample Input {i + 1} \n\n"
+            testcase_text += f"```\n{testcase[0]}\n```\n\n"
+            testcase_text += f"#### Sample Output {i + 1} \n\n"
+            testcase_text += f"```\n{testcase[1]}\n```\n\n"
+
+        return testcase_text
+
     def generate_testcase_exmp(self, testcases: list, input_name: str, output_name: str):
         """Generate a list of testcases for the LaTeX content."""
         testcase_list = "\n\n"
@@ -1129,6 +1169,9 @@ class Crawler():
         """Convert the problem content to LaTeX format for Polygon."""
         result = self.problem["problem_content_latex_base"]
 
+        # Make another version for quick copy
+        result_quick_copy = result
+
         # Insert a list with the testcases
         if len(self.problem.get("problem_testcases", [])) > 0:
             testcase_str = self.generate_testcase_list(self.problem.get("problem_testcases", []), 
@@ -1136,11 +1179,22 @@ class Crawler():
                                                 self.problem.get("problem_info_entries").get("output", "Output"))
             result = self.util_replace_testcase(result, testcase_str, (self.problem_site_type != "Codeforces"))
 
+            testcase_str = self.generate_testcase_text(self.problem.get("problem_testcases", []),
+                                                self.problem.get("problem_info_entries").get("input", "Input"), 
+                                                self.problem.get("problem_info_entries").get("output", "Output"))
+
+            result_quick_copy = self.util_replace_testcase(result_quick_copy, testcase_str, (self.problem_site_type != "Codeforces"))
+
         # Replace only the first occurrence of "<root>" and last occurrence of "</root>" with the LaTeX header and footer
         problem_info = self.generate_problem_info()
         result = result.replace("<root>", LATEX_HEADER + problem_info, 1)
         result = result[::-1].replace("</root>"[::-1], "\\end{document}"[::-1], 1)[::-1]
 
+        result_quick_copy = result_quick_copy.replace("<root>", problem_info, 1)
+        result_quick_copy = result_quick_copy[::-1].replace("</root>"[::-1], "", 1)[::-1]
+
+        self.result_quick_copy_latex_polygon = self.util_process_post_convert(result_quick_copy)
+        
         self.result_latex_polygon = self.util_process_post_convert(result)
         with open(os.path.join(self.output_problem_path_dir, "polygon.tex"), "w", encoding="utf8") as file:
             file.write(self.result_latex_polygon)
@@ -1325,6 +1379,14 @@ class Crawler():
         self.convert_to_md_dmoj("~")
         self.logger.step(step=5, force_update=False)
 
+        self.result_quick_copy_md_dmoj = self.result_md_dmoj
+        self.result_quick_copy_example_text = self.generate_testcase_text(self.problem.get("problem_testcases", []),
+                                                self.problem.get("problem_info_entries").get("input", "Input"), 
+                                                self.problem.get("problem_info_entries").get("output", "Output"))
+        self.result_quick_copy_example_md = self.generate_testcase_md(self.problem.get("problem_testcases", []),
+                                                self.problem.get("problem_info_entries").get("input", "Input"), 
+                                                self.problem.get("problem_info_entries").get("output", "Output"))
+
         self.logger.log(f"[{self.problem_site_type}] Hoàn tất định dạng nội dung sang LaTex (chung, Polygon, theo mẫu), Markdown (chung, DMOJ)!")
 
         # Save the problem to a JSON file
@@ -1389,4 +1451,4 @@ class Crawler():
 
 if __name__ == "__main__":
     # Crawler("https://claoj.edu.vn/problem/superprime2").crawl()
-    Crawler().crawl()
+    Crawler("").crawl()

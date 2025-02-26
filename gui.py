@@ -192,7 +192,7 @@ class App(Tk):
         self.lbl_cr_input = ctk.CTkLabel(self.crawl_tabview_frame, text="URL:", anchor="center")
         self.lbl_cr_input.grid(row=0, column=0, padx=8, pady=(5,5))
 
-        self.entry_cr_input = ctk.CTkEntry(self.crawl_tabview_frame, placeholder_text="Link URL tới trang (http://...; https://...)", height=27)
+        self.entry_cr_input = ctk.CTkEntry(self.crawl_tabview_frame, placeholder_text="Link URL tới trang (http://...; https://...)", height=27, )
         self.entry_cr_input.grid(row=0, column=1, columnspan=7, sticky="ew", pady=(5,5), padx=(0,8))
 
         self.box_cr_logbox = ctk.CTkTextbox(self.crawl_tabview_frame, activate_scrollbars=False, border_width=1, font=ctk.CTkFont(size = 12), wrap="word")
@@ -548,10 +548,16 @@ class App(Tk):
         os.system('explorer.exe /select,' + self.entry_cv_fz_input.get().replace('/', '\\'))
         
     def event_btn_sb_folder_output(self):
-        if str(self.entry_cv_fz_savedir.get()) == "":
-            self.event_btn_cv_fz_savedir_choose_dir()
-        
-        os.system('explorer.exe ' + self.entry_cv_fz_savedir.get().replace('/', '\\'))
+        if self.current_mode == "convert":
+            if str(self.entry_cv_fz_savedir.get()) == "":
+                self.event_btn_cv_fz_savedir_choose_dir()
+            
+            os.system('explorer.exe ' + self.entry_cv_fz_savedir.get().replace('/', '\\'))
+        elif self.current_mode == "crawl":
+            if str(self.entry_cr_savedir.get()) == "":
+                self.event_btn_cr_savedir_choose_dir()
+            
+            os.system('explorer.exe ' + self.entry_cr_savedir.get().replace('/', '\\'))
     
     def event_menu_sb_submode(self, new_submode: str):
         self.switch_submode(new_submode)
@@ -582,16 +588,39 @@ class App(Tk):
         threading.Thread(target=self.crawler.crawl).start()
 
     def event_btn_cr_quick_copy_statement_md(self):
-        pass
+        if self.crawler == None or self.crawler.result_quick_copy_md_dmoj == "":
+            return
+        
+        self.clipboard_clear()
+        self.clipboard_append(self.crawler.result_quick_copy_md_dmoj)
+        
+        self.logger.log_and_status("Đã sao chép Đề bài (DMOJ) vào clipboard!", "ok")
 
     def event_btn_cr_quick_copy_statement_latex(self):
-        pass
+        if self.crawler == None or self.crawler.result_quick_copy_latex_polygon == "":
+            return
+        
+        self.clipboard_clear()
+        self.clipboard_append(self.crawler.result_quick_copy_latex_polygon)
+        self.logger.log_and_status("Đã sao chép Đề bài (CF) vào clipboard!", "ok")
 
     def event_btn_cr_quick_copy_example_md(self):
-        pass
+        if self.crawler == None or self.crawler.result_quick_copy_example_md == "":
+            return
+        
+        self.clipboard_clear()
+        self.clipboard_append(self.crawler.result_quick_copy_example_md)
+        
+        self.logger.log_and_status("Đã sao chép Ví dụ (DMOJ) vào clipboard!", "ok")
 
     def event_btn_cr_quick_copy_example_text(self):
-        pass
+        if self.crawler == None or self.crawler.result_quick_copy_example_text == "":
+            return
+        
+        self.clipboard_clear()
+        self.clipboard_append(self.crawler.result_quick_copy_example_text)
+        
+        self.logger.log_and_status("Đã sao chép Ví dụ (Chung) vào clipboard!", "ok")
 
 class Logger():
     def __init__(self, textbox: ctk.CTkTextbox = None, progbar_status: ctk.CTkProgressBar = None, statusbar: ctk.CTkLabel = None, percentage: ctk.CTkLabel = None):
