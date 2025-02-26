@@ -3,7 +3,7 @@ import os
 import zipfile
 from gui import Logger
 
-VERSION = "2.9.0"
+VERSION = "3.0.0"
 
 class Formatter():
     def __init__(self, input_path, logger: Logger = Logger(),

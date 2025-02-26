@@ -5,7 +5,7 @@ from tkinterdnd2 import TkinterDnD, DND_ALL
 import customtkinter as ctk
 from PIL import Image
 
-VERSION = "2.9.0"
+VERSION = "3.0.0"
 COPYRIGHT = "© Loli 2025"
 
 FEATURE_CRAWL_ENABLED = True
@@ -117,10 +117,10 @@ class App(Tk):
         self.but_cv_fz_genoutput.grid(row=1, column=7, sticky="e", padx=(5,8))
 
         self.lbl_cv_fz_output_name = ctk.CTkLabel(self.convert_tabview_frame_fz, text="Tên bài đầu ra:", anchor="e")
-        self.lbl_cv_fz_output_name.grid(row=2, column=5, padx=(5,8), sticky="e")
+        self.lbl_cv_fz_output_name.grid(row=2, column=4, padx=(25,8), sticky="e")
 
         self.entry_cv_fz_output_name = ctk.CTkEntry(self.convert_tabview_frame_fz, placeholder_text="(như cũ)", height=23)
-        self.entry_cv_fz_output_name.grid(row=2, column=6, columnspan=2, sticky="ew", padx=(0,8))
+        self.entry_cv_fz_output_name.grid(row=2, column=5, columnspan=3, sticky="ew", padx=(0,8))
         self.entry_cv_fz_output_name.bind("<FocusOut>", self.event_entry_cv_fz_output_name)
 
         self.subframe_cv_fz_extopts = ctk.CTkFrame(self.convert_tabview_frame_fz, corner_radius=0, fg_color="transparent")
@@ -375,7 +375,7 @@ class App(Tk):
         elif new_mode == "convert":
             self.crawl_tabview_frame.grid_forget()
             self.convert_tabview_frame_fz.grid(row=0, column=1, sticky="nsew", padx=(10, 10), pady=(5, 5))
-            self.convert_tabview_frame_fz.grid_columnconfigure((2,3,4,5,6), weight=1)
+            self.convert_tabview_frame_fz.grid_columnconfigure((2,3,4,5), weight=1)
             self.convert_tabview_frame_fz.grid_rowconfigure((0,1,2,3,4,5), pad=7)
             self.convert_tabview_frame_fz.grid_rowconfigure(4, weight=1)
             self.logger = Logger(self.box_cv_fz_logbox, self.progbar_status, self.lbl_status, self.lbl_percentage)
