@@ -130,7 +130,7 @@ class App(Tk):
         self.entry_cv_fz_output_name.bind("<FocusOut>", self.event_entry_cv_fz_output_name)
 
         self.subframe_cv_fz_extopts = ctk.CTkFrame(self.convert_tabview_frame_fz, corner_radius=0, fg_color="transparent")
-        self.subframe_cv_fz_extopts.grid(row=2, column=0, columnspan=5, sticky="w", padx=4)
+        self.subframe_cv_fz_extopts.grid(row=2, column=0, columnspan=4, sticky="w", padx=4)
         self.subframe_cv_fz_extopts.grid_columnconfigure((1,3), weight=1, pad=10)
 
         self.lbl_cv_fz_input_ext = ctk.CTkLabel(self.subframe_cv_fz_extopts, text="Đuôi file input:", anchor="w")
