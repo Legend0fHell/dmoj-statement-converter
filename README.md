@@ -24,7 +24,7 @@
 - Có thể sử dụng file sinh kết quả để sinh ra output dựa trên input (sắp ra mắt).
 
 2. Cào bài
-- Cào bài và định dạng đề bài từ 27 trang OJ khác nhau (danh sách phía dưới).
+- Cào bài và định dạng đề bài từ **27+ trang OJ khác nhau** (danh sách phía dưới).
 - Tự động nhận diện test mẫu, tham số đề bài (giới hạn thời gian, file nhập/xuất, ...).
 - Tự động lưu ảnh/PDF trong đề.
 - Định dạng đề bài về 5 kiểu đầu ra:
@@ -37,6 +37,53 @@
 ![alt text](readme-resources/demo_crawl_1.png)
 ![alt text](readme-resources/demo_crawl_2.png)
 ![alt text](readme-resources/demo_crawl_3.png)
+
+## Danh sách OJ hỗ trợ
+1. Dạng DMOJ/VNOJ:
+dmoj.ca
+cyboj.ddns.net
+oj.qnoi.info
+oj.vnoi.info
+tinhoctre.vn
+coder.husc.edu.vn
+oj.chuyenhalong.edu.vn
+dmoj.ctu.edu.vn
+hnoj.edu.vn
+chvoj.edu.vn
+oj.giftedbat.edu.vn
+claoj.edu.vn
+laptrinhonline.club
+ptnkoj.com
+laptrinh.ictu.edu.vn
+oj.lequydon.net
+oj.thptchuyenhatinh.edu.vn
+sqrtoj.edu.vn
+oj.vku.udn.vn
+oj.eiu.edu.vn
+"""
+
+2. Dạng LQDOJ:
+```
+lqdoj.edu.vn
+tleoj.edu.vn
+nbk.homes
+ltoj.edu.vn
+quangtrioj.edu.vn
+```
+
+3. Dạng Codeforces:
+
+```
+*.codeforces.com
+*.contest.codeforces.com
+codeforces.com/gym/*
+codeforces.com/problemset/*
+```
+
+4. Dạng CSLOJ:
+```
+csloj.ddns.net
+```
 
 ## Build guide/Hướng dẫn build
 WIP
