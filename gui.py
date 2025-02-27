@@ -17,16 +17,22 @@ class Tk(ctk.CTk, TkinterDnD.DnDWrapper):
         self.TkdndVersion = TkinterDnD._require(self)
 
 class App(Tk):
+    def load_resource(self, resource_path: str):
+        try:
+            return Image.open(resource_path)
+        except:
+            return Image.open(f"_internal/{resource_path}")
+        
     def init_resources(self):
         # configure resources images
-        self.img_mode_convert = ctk.CTkImage(dark_image=Image.open("resources/dark_img_convert.png"),
-                                             light_image=Image.open("resources/light_img_convert.png"),     
-                                             size=(24, 24))
+        self.img_mode_convert = ctk.CTkImage(dark_image=self.load_resource("resources/dark_img_convert.png"),
+                                            light_image=self.load_resource("resources/light_img_convert.png"),     
+                                            size=(24, 24))
         
-        self.img_mode_crawl = ctk.CTkImage(dark_image=Image.open("resources/dark_img_crawl.png"),
-                                             light_image=Image.open("resources/light_img_crawl.png"),     
-                                             size=(24, 24))
-
+        self.img_mode_crawl = ctk.CTkImage(dark_image=self.load_resource("resources/dark_img_crawl.png"),
+                                            light_image=self.load_resource("resources/light_img_crawl.png"),     
+                                            size=(24, 24))
+        
     def init_frame_sidebar(self):
         self.frame_sidebar = ctk.CTkFrame(self, width=140, corner_radius=0)
         self.frame_sidebar.grid(row=0, column=0, sticky="nsew")
